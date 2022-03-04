@@ -404,3 +404,62 @@ class Alignment:
                 ans = i 
                 break
         return ans   
+
+class HMM:
+    def __init__(self, initial_state_probabilities, transition_probabilities, observation_probabilities, termination = False):
+        self.initial_state_probabilities = initial_state_probabilities
+        self.transition_probabilities = transition_probabilities
+        self.observation_probabilities = observation_probabilities
+        self.num_states = observation_probabilities.shape[0]
+        self.observation_length = observation_probabilities.shape[1]
+        self.viterbi_path = np.zeros(self.observation_length, dtype='int16')
+        self.viterbi_probability = 0
+    
+    def viterbi(self):
+        max_probs = np.zeros((self.num_states, self.observation_length))
+        pointers = np.zeros((self.num_states, self.observation_length), dtype='int16')
+        for s in range(self.num_states):
+            max_probs[s, 0] = math.log(self.initial_state_probabilities[s]) + math.log(self.observation_probabilities[s, 0])
+        for i in range(1, self.observation_length):
+            for t in range(self.num_states):
+                max_state = 0
+                max_val = -np.inf
+                for s in range(self.num_states):
+                    temp = max_probs[s, i-1] + math.log(self.transition_probabilities[s, t]) + math.log(self.observation_probabilities[t, i])
+                    if temp > max_val:
+                        max_state = s
+                        max_val = temp
+                max_probs[t, i] = max_val
+                pointers[t, i] = max_state
+        max_state = 0
+        max_val = -np.inf
+        for t in range(self.num_states):
+            if max_probs[t, self.observation_length - 1] > max_val:
+                max_state = t
+                max_val = max_probs[t, self.observation_length - 1]
+        self.viterbi_log_probability = max_val
+
+        #  Traceback
+        for i in reversed(range(self.observation_length)):
+            self.viterbi_path[i] = max_state
+            max_state = pointers[max_state, i]
+            
+def mutation_probs(rate_0, rate_1, alignment_list):
+    align_list =  alignment_list
+    len_align_list = len(alignment_list[0])
+    num_sequences = len(alignment_list)
+    symbols = ['A','C','G','T']
+    observation_probs =  np.zeros((2, len_align_list))
+    pseudo_counts = [0.01, 0.01, 0.01, 0.01]
+    for i in range(len_align_list):
+        temp =  [x[i] for x in alignment_list]
+        for j, s in enumerate(symbols):
+            if 1==2:
+                pass
+                #i <= 50 or len_align_list - i < 50:
+                #observation_probs[0, i] = 0.01
+                #observation_probs[1, i] = 0.99
+            else:
+                observation_probs[0, i] = observation_probs[0, i] + 0.25 * ((1-rate_0) ** (temp.count(s) + pseudo_counts[j])) * ((rate_0/3) ** (num_sequences - temp.count(s)))
+                observation_probs[1, i] = observation_probs[1, i] + 0.25 * ((1-rate_1) ** (temp.count(s) + pseudo_counts[j])) * ((rate_1/3) ** (num_sequences - temp.count(s)))
+    return observation_probs
