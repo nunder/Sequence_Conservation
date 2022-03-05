@@ -71,9 +71,40 @@ def generate_protein_file(input_fileloc, output_fileloc):
                     f.write('>' + a.get('protein_id')[0] + '\n' + a.get('translation')[0] + '\n')
 
 def run_sonic_paranoid(protein_file_location, output_location, run_name):
-    subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + wslname(protein_file_location) +' -o ' + 
-    wslname(output_location) + ' -p ' + run_name + ' -t 8' , shell=True)
+    subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + wslname(protein_file_location) +' -o ' + wslname(output_location) + ' -p ' + run_name + ' -t 8' , shell=True)
 
+def concatenate_fasta(directory, file_list, output_file):
+    sequence_dict = {}
+    for filename in file_list:
+        f = directory + '/' + filename
+        sequence_count = 0
+        with open(f,'r') as ofile:
+                first_seq = 0
+                for l in ofile:
+                    m = l.strip('\n')
+                    if m[0] == '>':
+                        sequence_count += 1
+                        if first_seq == 0:
+                            sequence_name = m[1:]
+                            outstr = ''
+                        else:
+                            sequence_dict[(filename,sequence_name)] = outstr
+                            sequence_name = m[1:]
+                            outstr = ''
+                    else:
+                        first_seq = 1
+                        outstr += m
+                sequence_dict[(filename,sequence_name)] = outstr
+                sequence_name = m[1:]
+    name_list = list(set([i[1] for i in list(sequence_dict.keys())]))
+    with open(output_file,'w') as outfile:
+        for name in name_list:
+            outfile.write(">" + name + "\n")      
+            outstring = []
+            for filename in file_list:
+                outstring.append(sequence_dict[(filename, name)])
+            outfile.write(''.join(outstring) + "\n")
+    
 def read_fasta_to_arrays(filename):
     with open(filename,'r') as ofile: 
             sequence_names = []
