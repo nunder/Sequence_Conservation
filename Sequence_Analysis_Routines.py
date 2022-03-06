@@ -14,6 +14,7 @@ from joblib import Parallel, delayed
 import random
 from statistics import mean, stdev
 import math
+from scipy import linalg
 
 ###    File routines ###
 
@@ -366,6 +367,9 @@ class Alignment:
     def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): #  group_id, mvave_len, remove_insertions = 'Y', consensus = 1):
         temp = read_fasta_to_arrays(fileloc)
         self.alphabet_name = alphabet_name
+        self.non_insert_symbols = []
+        if self.alphabet_name == 'NT':
+            self.non_insert_symbols = ['A','C','G','T']
         self.insert_symbol = insert_symbol
         self.sequence_names = temp[0]
         self.sequence_list = temp[1]
@@ -380,17 +384,24 @@ class Alignment:
         self.master_species_modified_sequence_insertions = []
         self.master_species_modified_sequence = self.modified_sequence_list[self.master_species_index]
        
-    def modify_sequence(self, consensus):
+    def modify_sequence(self, consensus, delete_insert_sites = False, randomize_insert_sites = False):
         self.modified_sequence_list = []
         for j in range(self.num_sequences):
             self.modified_sequence_list.append([])
         for i in range(self.sequence_length):
             temp = [x[i] for x in self.sequence_list]
+            if delete_insert_sites == True:
+                if temp.count(self.insert_symbol) > 0:
+                    continue
             if ((temp[self.master_species_index] == self.insert_symbol) and (temp.count(self.insert_symbol) >= consensus)):
-                pass
-            else:
-                for j in range(self.num_sequences):
-                    self.modified_sequence_list[j].append(temp[j])
+                continue
+            if randomize_insert_sites == True:
+                for i in range(len(temp)):
+                    if not (temp[i] in self.non_insert_symbols):
+                        temp[i] = self.non_insert_symbols[np.where(np.random.default_rng().multinomial(1, np.array([0.25, 0.25, 0.25, 0.25]), size=None) == 1)[0][0]]
+            
+            for j in range(self.num_sequences):
+                self.modified_sequence_list[j].append(temp[j])
         for i in range(self.num_sequences):
             self.modified_sequence_list[i] = ''.join(self.modified_sequence_list[i])
         self.modified_sequence_length = len(self.modified_sequence_list[0])
@@ -475,22 +486,94 @@ class HMM:
             self.viterbi_path[i] = max_state
             max_state = pointers[max_state, i]
             
-def mutation_probs(rate_0, rate_1, alignment_list):
+#def mutation_probs(rate_0, rate_1, alignment_list):
+#    align_list =  alignment_list
+#    len_align_list = len(alignment_list[0])
+#    num_sequences = len(alignment_list)
+#    symbols = ['A','C','G','T']
+#    observation_probs =  np.zeros((2, len_align_list))
+#    pseudo_counts = [0.01, 0.01, 0.01, 0.01]
+#    for i in range(len_align_list):
+#        temp =  [x[i] for x in alignment_list]
+#        for j, s in enumerate(symbols):
+#            observation_probs[0, i] = observation_probs[0, i] + 0.25 * ((1-rate_0) ** (temp.count(s) + pseudo_counts[j])) * ((rate_0/3) ** (num_sequences - temp.count(s)))
+#            observation_probs[1, i] = observation_probs[1, i] + 0.25 * ((1-rate_1) ** (temp.count(s) + pseudo_counts[j])) * ((rate_1/3) ** (num_sequences - temp.count(s)))
+#    return observation_probs
+
+def mutation_probs(rate_0, rate_1, alignment_list, alignment_names, master_tree, num_states):
     align_list =  alignment_list
     len_align_list = len(alignment_list[0])
     num_sequences = len(alignment_list)
-    symbols = ['A','C','G','T']
     observation_probs =  np.zeros((2, len_align_list))
-    pseudo_counts = [0.01, 0.01, 0.01, 0.01]
     for i in range(len_align_list):
-        temp =  [x[i] for x in alignment_list]
-        for j, s in enumerate(symbols):
-            if 1==2:
-                pass
-                #i <= 50 or len_align_list - i < 50:
-                #observation_probs[0, i] = 0.01
-                #observation_probs[1, i] = 0.99
-            else:
-                observation_probs[0, i] = observation_probs[0, i] + 0.25 * ((1-rate_0) ** (temp.count(s) + pseudo_counts[j])) * ((rate_0/3) ** (num_sequences - temp.count(s)))
-                observation_probs[1, i] = observation_probs[1, i] + 0.25 * ((1-rate_1) ** (temp.count(s) + pseudo_counts[j])) * ((rate_1/3) ** (num_sequences - temp.count(s)))
+        temp = []
+        temp.append([x for x in alignment_names])
+        temp.append([x[i] for x in alignment_list])
+        observation_probs[0, i] = felsenstein_probability (temp, num_states, master_tree, rate_0) 
+        observation_probs[1, i] = felsenstein_probability (temp, num_states, master_tree, rate_1) 
     return observation_probs
+
+def transition_probability(state_1, state_2, num_states, branch_length):
+    #return linalg.expm(branch_length * transition_matrix)[state_1, state_2]
+    temp = math.exp(-1.0*num_states*branch_length/(num_states -1))
+    if state_1 == state_2:
+        ans = 1.0/num_states + (num_states-1)/num_states * temp
+    else:
+        ans = 1.0/num_states - 1.0/num_states * temp
+    return ans
+
+def felsenstein_probability (state_list, num_states, master_tree, length_scalar):
+    if num_states == 4:
+        alphabet = ['A','C','G','T']
+    else:
+        alphabet = ['A','C','G','T','-']
+    initial_states = {}
+    prior_probabilities = [1/num_states] * num_states
+    for i in range(len(state_list[0])):
+        initial_states[state_list[0][i]] = alphabet.index(state_list[1][i])
+    nodes_under_consideration = []
+    info_dict = {}
+    num_nodes = 0
+    for node in master_tree.traverse():
+        num_nodes+=1
+        if node.is_leaf():
+            nodes_under_consideration.append(node)
+            temp_probs = []
+            for s in range(num_states):
+                if initial_states[node.name] == s:
+                    temp_probs.append(1)
+                else:
+                    temp_probs.append(0)
+            info_dict[node] = temp_probs
+    while(len(nodes_under_consideration) < num_nodes):
+        for n in nodes_under_consideration:
+            if n.up in info_dict:
+                continue
+            sibling_group = [n]
+            for p in n.get_sisters():
+                sibling_group.append(p)
+            num_not_in_dict = 0
+            for x in sibling_group:
+                if not(x in info_dict):
+                    num_not_in_dict +=1
+            if num_not_in_dict == 0:
+                new_probs = []
+                for s in range(num_states):
+                    temp_prob = 1
+                    for x in sibling_group:
+                        branch_length = x.dist
+                        probs = info_dict[x]
+                        temp_prob_2 = 0
+                        for t in range(num_states):
+                            temp_prob_2 += transition_probability(s, t, num_states, branch_length * length_scalar)*probs[t]
+                        temp_prob = temp_prob * temp_prob_2
+                    new_probs.append(temp_prob)
+                info_dict[n.up] = new_probs
+        nodes_under_consideration = list(info_dict.keys()) 
+    for node in master_tree.traverse():
+        if node.is_root():
+            ans = 0
+            probs = info_dict[node]
+            for s in range(num_states):
+                ans = ans + prior_probabilities[s] * probs[s] 
+    return ans
