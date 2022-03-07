@@ -414,7 +414,7 @@ class Alignment:
         for i in range(self.modified_sequence_length):
             if not (self.master_species_modified_sequence[i] == self.insert_symbol):
                 sli = [x[i] for x in other_sequences]
-                if sli.count(self.insert_symbol) == self.num_sequences - 1:
+                if sli.count(self.insert_symbol) >=1:   # == self.num_sequences - 1:
                     self.master_species_modified_sequence_insertions.append(i)
         
     def calculate_entropies(self, mvave_len = 1, modified=True):
