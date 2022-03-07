@@ -485,50 +485,30 @@ class HMM:
         for i in reversed(range(self.observation_length)):
             self.viterbi_path[i] = max_state
             max_state = pointers[max_state, i]
-            
-#def mutation_probs(rate_0, rate_1, alignment_list):
-#    align_list =  alignment_list
-#    len_align_list = len(alignment_list[0])
-#    num_sequences = len(alignment_list)
-#    symbols = ['A','C','G','T']
-#    observation_probs =  np.zeros((2, len_align_list))
-#    pseudo_counts = [0.01, 0.01, 0.01, 0.01]
-#    for i in range(len_align_list):
-#        temp =  [x[i] for x in alignment_list]
-#        for j, s in enumerate(symbols):
-#            observation_probs[0, i] = observation_probs[0, i] + 0.25 * ((1-rate_0) ** (temp.count(s) + pseudo_counts[j])) * ((rate_0/3) ** (num_sequences - temp.count(s)))
-#            observation_probs[1, i] = observation_probs[1, i] + 0.25 * ((1-rate_1) ** (temp.count(s) + pseudo_counts[j])) * ((rate_1/3) ** (num_sequences - temp.count(s)))
-#    return observation_probs
-
-def mutation_probs(rate_0, rate_1, alignment_list, alignment_names, master_tree, num_states):
+           
+        
+        
+def mutation_probs(rates, alignment_list, alignment_names, master_tree, num_symbols):
+    num_states = len(rates)
     align_list =  alignment_list
     len_align_list = len(alignment_list[0])
     num_sequences = len(alignment_list)
-    observation_probs =  np.zeros((2, len_align_list))
+    observation_probs =  np.zeros((num_states, len_align_list))
     for i in range(len_align_list):
         temp = []
         temp.append([x for x in alignment_names])
         temp.append([x[i] for x in alignment_list])
-        observation_probs[0, i] = felsenstein_probability (temp, num_states, master_tree, rate_0) 
-        observation_probs[1, i] = felsenstein_probability (temp, num_states, master_tree, rate_1) 
+        for j in range(num_states):
+            observation_probs[j, i] = felsenstein_probability (temp, num_symbols, master_tree, rates[j]) 
     return observation_probs
 
-def transition_probability(state_1, state_2, num_states, branch_length):
-    #return linalg.expm(branch_length * transition_matrix)[state_1, state_2]
-    temp = math.exp(-1.0*num_states*branch_length/(num_states -1))
-    if state_1 == state_2:
-        ans = 1.0/num_states + (num_states-1)/num_states * temp
-    else:
-        ans = 1.0/num_states - 1.0/num_states * temp
-    return ans
-
-def felsenstein_probability (state_list, num_states, master_tree, length_scalar):
-    if num_states == 4:
+def felsenstein_probability (state_list, num_symbols, master_tree, length_scalar):
+    if num_symbols == 4:
         alphabet = ['A','C','G','T']
     else:
         alphabet = ['A','C','G','T','-']
     initial_states = {}
-    prior_probabilities = [1/num_states] * num_states
+    prior_probabilities = [1/num_symbols] * num_symbols
     for i in range(len(state_list[0])):
         initial_states[state_list[0][i]] = alphabet.index(state_list[1][i])
     nodes_under_consideration = []
@@ -539,7 +519,7 @@ def felsenstein_probability (state_list, num_states, master_tree, length_scalar)
         if node.is_leaf():
             nodes_under_consideration.append(node)
             temp_probs = []
-            for s in range(num_states):
+            for s in range(num_symbols):
                 if initial_states[node.name] == s:
                     temp_probs.append(1)
                 else:
@@ -558,14 +538,19 @@ def felsenstein_probability (state_list, num_states, master_tree, length_scalar)
                     num_not_in_dict +=1
             if num_not_in_dict == 0:
                 new_probs = []
-                for s in range(num_states):
+                for s in range(num_symbols):
                     temp_prob = 1
                     for x in sibling_group:
                         branch_length = x.dist
                         probs = info_dict[x]
                         temp_prob_2 = 0
-                        for t in range(num_states):
-                            temp_prob_2 += transition_probability(s, t, num_states, branch_length * length_scalar)*probs[t]
+                        for t in range(num_symbols):
+                            jc_prob = math.exp(-1.0*num_symbols*branch_length*length_scalar/(num_symbols -1))
+                            if s == t:
+                                transition_probability = 1.0/num_symbols + (num_symbols-1)/num_symbols * jc_prob
+                            else:
+                                transition_probability = 1.0/num_symbols - 1.0/num_symbols * jc_prob
+                            temp_prob_2 += transition_probability * probs[t]
                         temp_prob = temp_prob * temp_prob_2
                     new_probs.append(temp_prob)
                 info_dict[n.up] = new_probs
@@ -574,6 +559,6 @@ def felsenstein_probability (state_list, num_states, master_tree, length_scalar)
         if node.is_root():
             ans = 0
             probs = info_dict[node]
-            for s in range(num_states):
+            for s in range(num_symbols):
                 ans = ans + prior_probabilities[s] * probs[s] 
     return ans
