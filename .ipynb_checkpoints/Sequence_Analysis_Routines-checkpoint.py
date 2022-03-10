@@ -447,6 +447,7 @@ class Alignment:
                 break
         return ans   
 
+    
 class HMM:
     def __init__(self, initial_state_probabilities, transition_probabilities, observation_probabilities, termination = False):
         self.initial_state_probabilities = initial_state_probabilities
@@ -456,6 +457,10 @@ class HMM:
         self.observation_length = observation_probabilities.shape[1]
         self.viterbi_path = np.zeros(self.observation_length, dtype='int16')
         self.viterbi_probability = 0
+        self.forward_probabilities = []
+        self.backward_probabilities = []
+        self.forward_ll = 0
+        self.backward_ll = 0
     
     def viterbi(self):
         max_probs = np.zeros((self.num_states, self.observation_length))
@@ -485,7 +490,60 @@ class HMM:
         for i in reversed(range(self.observation_length)):
             self.viterbi_path[i] = max_state
             max_state = pointers[max_state, i]
-           
+    
+    def sum_logs(self, p, q):
+        if p>9999 and q>99999:
+            ans = math.log(math.exp(p) + math.exp(q))
+        else:
+            if p > q:
+                ans =  p + math.log(1 + math.exp(q - p))
+            else:
+                ans =  q + math.log(1 + math.exp(p - q))
+        return ans
+    
+    def forward(self):
+        self.forward_probabilities = np.zeros((self.num_states, self.observation_length))
+        for s in range(self.num_states):
+            self.forward_probabilities[s, 0] = math.log(self.initial_state_probabilities[s]) + math.log(self.observation_probabilities[s, 0])
+        for i in range(1, self.observation_length):
+            for t in range(self.num_states):
+                temp = 0
+                for s in range(self.num_states):
+                    if s == 0:
+                        temp = math.log(self.transition_probabilities[s, t]) + self.forward_probabilities[s, i-1]
+                    else:
+                        temp = self.sum_logs(temp, math.log(self.transition_probabilities[s, t]) + self.forward_probabilities[s, i-1])
+                self.forward_probabilities[t, i] = temp + math.log(self.observation_probabilities[t, i])
+        temp = 0
+        for t in range(self.num_states):
+            if t == 0:
+                temp = self.forward_probabilities[t, self.observation_length -1]
+            else:
+                temp = self.sum_logs(temp, self.forward_probabilities[t, self.observation_length -1])
+        self.forward_ll = temp
+        
+    def backward(self):
+        self.backward_probabilities = np.zeros((self.num_states, self.observation_length))
+        for s in range(self.num_states):
+            self.backward_probabilities[s, self.observation_length - 1] = 0 #math.log(self.observation_probabilities[s, self.observation_length - 1])
+        for i in reversed(range(0, self.observation_length - 1)):
+            for s in range(self.num_states):
+                temp = 0
+                for t in range(self.num_states):
+                    if t == 0:
+                        temp = self.backward_probabilities[t, i+1] + math.log(self.transition_probabilities[s, t]) + math.log(self.observation_probabilities[t, i+1])
+                    else:
+                        temp = self.sum_logs(temp, self.backward_probabilities[t, i+1] + math.log(self.transition_probabilities[s, t]) + math.log(self.observation_probabilities[t, i+1]))
+                self.backward_probabilities[s, i] = temp
+        temp = 0
+        for t in range(self.num_states):
+            if t == 0:
+                temp = math.log(self.initial_state_probabilities[t]) + self.backward_probabilities[t, 0] + math.log(self.observation_probabilities[t,0])
+            else:
+                temp = self.sum_logs(temp, math.log(self.initial_state_probabilities[t]) + self.backward_probabilities[t, 0] + math.log(self.observation_probabilities[t,0]))
+        self.backward_ll = temp
+
+        
         
         
 def mutation_probs(rates, alignment_list, alignment_names, master_tree, num_symbols):
