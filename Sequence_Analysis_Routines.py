@@ -72,7 +72,7 @@ def generate_protein_file(input_fileloc, output_fileloc):
                     f.write('>' + a.get('protein_id')[0] + '\n' + a.get('translation')[0] + '\n')
 
 def run_sonic_paranoid(protein_file_location, output_location, run_name):
-    subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + wslname(protein_file_location) +' -o ' + wslname(output_location) + ' -p ' + run_name + ' -t 8' , shell=True)
+    subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + wslname(protein_file_location) +' -o ' + wslname(output_location) + ' -p ' + run_name + ' -t 8 -ot' , shell=True)
 
 def concatenate_fasta(directory, file_list, output_file):
     sequence_dict = {}
@@ -315,7 +315,7 @@ def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
         return relent_list
     else:
         return cumulative_relent
-#  Orthologue class
+
 
 class Ortholog_Grouping:
     def __init__(self, file_loc):
@@ -620,3 +620,30 @@ def felsenstein_probability (state_list, num_symbols, master_tree, length_scalar
             for s in range(num_symbols):
                 ans = ans + prior_probabilities[s] * probs[s] 
     return ans
+
+def fit_phylo_hmm(tree, num_symbols, num_states, params, group_ids, align_dict, num_subsets, subset_num, offset, min_length):
+    initial_state_probabilities = [1.0/num_states]*num_states
+    total_probability = 0
+    a = params[0]
+    b = (1-params[0])
+    c = 1 - (params[1])
+    d = params[1]
+    transition_probabilities = np.array([[a,b],[c,d]])
+    ids = chunk_list(group_ids, num_subsets, subset_num)
+    for group_id in ids:
+        alignment = align_dict[group_id]
+        align_list =  alignment.modified_sequence_list
+        align_names = alignment.sequence_names
+        len_align_list = len(align_list[0])
+        non_cds = [x[offset:len_align_list - offset] for x in align_list]
+        if len(non_cds[0]) < min_length:
+            continue
+        observation_probabilities = mutation_probs(params[len(params)-num_states:len(params)], non_cds, align_names, tree, num_symbols)
+        trial_hmm = HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
+        #trial_hmm.viterbi()
+        #total_probability += trial_hmm.viterbi_log_probability * -1
+        trial_hmm.forward()
+        total_probability += trial_hmm.forward_ll * -1
+    return total_probability
+
+ 
