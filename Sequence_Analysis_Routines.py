@@ -363,6 +363,9 @@ class Ortholog_Sequence_Dataset:
         temp_df = self.sequence_data[self.sequence_data['group_id'] == group_id]
         return temp_df[temp_df['species'] == self.master_species].iloc[0][fieldname]
 
+    def species_info(self):
+        return self.sequence_data.drop_duplicates(['name','species'])[['name','species']]
+    
 class Alignment:
     def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): #  group_id, mvave_len, remove_insertions = 'Y', consensus = 1):
         temp = read_fasta_to_arrays(fileloc)
