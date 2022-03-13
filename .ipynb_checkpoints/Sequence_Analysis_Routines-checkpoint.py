@@ -15,6 +15,7 @@ import random
 from statistics import mean, stdev
 import math
 from scipy import linalg
+import scipy.stats as ss
 
 ###    File routines ###
 
@@ -386,6 +387,7 @@ class Alignment:
         self.mvave_relative_entropy = [] 
         self.master_species_modified_sequence_insertions = []
         self.master_species_modified_sequence = self.modified_sequence_list[self.master_species_index]
+        self.replaced_indels = []
        
     def modify_sequence(self, consensus, delete_insert_sites = False, randomize_insert_sites = False):
         self.modified_sequence_list = []
@@ -399,10 +401,12 @@ class Alignment:
             if ((temp[self.master_species_index] == self.insert_symbol) and (temp.count(self.insert_symbol) >= consensus)):
                 continue
             if randomize_insert_sites == True:
+                num_replacements = 0
                 for i in range(len(temp)):
                     if not (temp[i] in self.non_insert_symbols):
                         temp[i] = self.non_insert_symbols[np.where(np.random.default_rng().multinomial(1, np.array([0.25, 0.25, 0.25, 0.25]), size=None) == 1)[0][0]]
-            
+                        num_replacements += 1
+                self.replaced_indels.append(num_replacements)
             for j in range(self.num_sequences):
                 self.modified_sequence_list[j].append(temp[j])
         for i in range(self.num_sequences):
@@ -547,8 +551,32 @@ class HMM:
         self.backward_ll = temp
 
         
-        
-        
+def cons_mutation_probs(params, alignment_list, alignment_names, num_symbols, sequence_name_dict, master_species_index):    
+    num_states = 3
+    align_list =  alignment_list
+    len_align_list = len(alignment_list[0])
+    num_sequences = len(alignment_list)
+    observation_probs =  np.zeros((num_states, len_align_list))
+    for i in range(len_align_list):
+        for a_name in alignment_names:
+            j = sequence_name_dict[a_name]
+            if j == master_species_index:
+                master_species_symbol = alignment_list[j][i]
+        for s in range(num_states):
+            ans = 1
+            for a_name in alignment_names:
+                j = sequence_name_dict[a_name]
+                if j == master_species_index:
+                    continue
+                else:
+                    aligned_symbol = alignment_list[j][i]
+                    if aligned_symbol == master_species_symbol:
+                        ans = ans * (params[s])
+                    else:
+                        ans = ans * (1-params[s])
+            observation_probs[s, i] = ans
+    return observation_probs
+
 def mutation_probs(rates, alignment_list, alignment_names, master_tree, num_symbols):
     num_states = len(rates)
     align_list =  alignment_list
@@ -641,7 +669,7 @@ def fit_phylo_hmm(tree, num_symbols, num_states, params, group_ids, align_dict, 
         non_cds = [x[offset:len_align_list - offset] for x in align_list]
         if len(non_cds[0]) < min_length:
             continue
-        observation_probabilities = mutation_probs(params[len(params)-num_states:len(params)], non_cds, align_names, tree, num_symbols)
+        observation_probabilities = mutation_probs(params[2:4], non_cds, align_names, tree, num_symbols)
         trial_hmm = HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
         #trial_hmm.viterbi()
         #total_probability += trial_hmm.viterbi_log_probability * -1
@@ -649,4 +677,30 @@ def fit_phylo_hmm(tree, num_symbols, num_states, params, group_ids, align_dict, 
         total_probability += trial_hmm.forward_ll * -1
     return total_probability
 
- 
+def fit_cons_hmm(num_symbols, num_states, params, group_ids, align_dict, num_subsets, subset_num, offset, min_length, sequence_name_dict, master_species_index):
+    initial_state_probabilities = [1.0/num_states]*num_states
+    total_probability = 0
+    a = params[0]
+    b = (1-params[0])*(params[1])
+    c = 1 - b - a
+    d = params[2]
+    f = 0.00001
+    e = 1 - d - f
+    g = params[3]
+    h = 0.00001
+    i = 1 - g - h
+    transition_probabilities = np.array([[a,b,c],[d,e,f],[g,h,i]])
+    ids = chunk_list(group_ids, num_subsets, subset_num)
+    for group_id in ids:
+        alignment = align_dict[group_id]
+        align_list =  alignment.modified_sequence_list
+        align_names = alignment.sequence_names
+        len_align_list = len(align_list[0])
+        non_cds = [x[offset:len_align_list - offset] for x in align_list]
+        if len(non_cds[0]) < min_length:
+            continue
+        observation_probabilities = cons_mutation_probs(params[4:], non_cds, align_names, num_symbols, sequence_name_dict, master_species_index)
+        trial_hmm = HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
+        trial_hmm.forward()
+        total_probability += trial_hmm.forward_ll * -1
+    return total_probability
