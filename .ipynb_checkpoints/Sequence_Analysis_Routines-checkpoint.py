@@ -669,7 +669,8 @@ def fit_phylo_hmm(tree, num_symbols, num_states, params, group_ids, align_dict, 
         non_cds = [x[offset:len_align_list - offset] for x in align_list]
         if len(non_cds[0]) < min_length:
             continue
-        observation_probabilities = mutation_probs(params[2:4], non_cds, align_names, tree, num_symbols)
+        #observation_probabilities = mutation_probs(params[2:4], non_cds, align_names, tree, num_symbols)
+        observation_probabilities = mutation_probs([params[2],params[3],params[3]], non_cds, align_names, tree, num_symbols)
         trial_hmm = HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
         #trial_hmm.viterbi()
         #total_probability += trial_hmm.viterbi_log_probability * -1
@@ -682,13 +683,13 @@ def fit_cons_hmm(num_symbols, num_states, params, group_ids, align_dict, num_sub
     total_probability = 0
     a = params[0]
     b = (1-params[0])*(params[1])
-    c = 1 - b - a
-    d = params[2]
-    f = 0.00001
-    e = 1 - d - f
-    g = params[3]
-    h = 0.00001
-    i = 1 - g - h
+    c = 1-a-b
+    e = params[2]
+    d = (1-params[2])*(params[3])
+    f = 1-e-d
+    i = params[4]
+    g = (1-params[4])*(params[5])
+    h = 1 - i - g
     transition_probabilities = np.array([[a,b,c],[d,e,f],[g,h,i]])
     ids = chunk_list(group_ids, num_subsets, subset_num)
     for group_id in ids:
@@ -699,7 +700,7 @@ def fit_cons_hmm(num_symbols, num_states, params, group_ids, align_dict, num_sub
         non_cds = [x[offset:len_align_list - offset] for x in align_list]
         if len(non_cds[0]) < min_length:
             continue
-        observation_probabilities = cons_mutation_probs(params[4:], non_cds, align_names, num_symbols, sequence_name_dict, master_species_index)
+        observation_probabilities = cons_mutation_probs(params[6:], non_cds, align_names, num_symbols, sequence_name_dict, master_species_index)
         trial_hmm = HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
         trial_hmm.forward()
         total_probability += trial_hmm.forward_ll * -1
