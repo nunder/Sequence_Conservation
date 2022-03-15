@@ -331,24 +331,36 @@ class Ortholog_Grouping:
             if r['protein_id'][0] == '*':
                 orthologs_df.at[i,'num_protein_ids'] = 0
             else:
-                orthologs_df.at[i,'protein_id'] = r['protein_id'].split(',')[0]
+                orthologs_df.at[i,'protein_id'] = r['protein_id'].split(',')
                 orthologs_df.at[i,'num_protein_ids'] = len(r['protein_id'].split(','))
-        self.orthologs_df = orthologs_df[orthologs_df['num_protein_ids']==1]   #  Remove species not in ortholog group or where more than one protein 
-        temp_df = self.orthologs_df.groupby('group_id',as_index=False)['protein_id'].count()
+                
+        self.all_copy_orthologs_df = orthologs_df.explode('protein_id', ignore_index=True)        
+        temp_df = self.all_copy_orthologs_df.groupby('group_id',as_index=False)['protein_id'].count()
+        self.all_copy_ortholog_groups = temp_df['group_id'].tolist()
+
+        self.single_copy_orthologs_df = orthologs_df[orthologs_df['num_protein_ids']==1]   #  Remove species not in ortholog group or where more than one protein 
+        self.single_copy_orthologs_df = self.single_copy_orthologs_df.explode('protein_id', ignore_index=True)       
+        temp_df = self.single_copy_orthologs_df.groupby('group_id',as_index=False)['protein_id'].count()
         self.single_copy_ortholog_groups = temp_df['group_id'].tolist()
-        self.full_ortholog_groups = temp_df[temp_df['protein_id'] == self.num_ids]['group_id'].tolist()
+        self.full_single_copy_ortholog_groups = temp_df[temp_df['protein_id'] == self.num_ids]['group_id'].tolist()
 
 
 
 class Ortholog_Sequence_Dataset:
-    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, offset, master_species):
+    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, offset, master_species, single_copy = True):
         df_list = list()
         match_stats = list()
         for id in tqdm(genome_ids):
             cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',offset)
-            orthologs_for_id = ortholog_grouping.orthologs_df[ortholog_grouping.orthologs_df['species'] == id]
-            orthologs_and_cds_info = orthologs_for_id.merge(cds_data, how = 'left', left_on = 'protein_id', right_on = 'protein_id')
-            orthologs_and_cds_info.drop_duplicates(subset = ['protein_id'], keep=False, inplace=True)   # Remove instances where same protein is coded in multiple locuses
+            
+            if single_copy == True:
+                orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.single_copy_orthologs_df['species'] == id]
+                orthologs_and_cds_info = orthologs_for_id.merge(cds_data, how = 'left', left_on = 'protein_id', right_on = 'protein_id')
+                orthologs_and_cds_info.drop_duplicates(subset = ['protein_id'], keep=False, inplace=True)   # Remove instances where same protein is coded in multiple locuses
+            else:
+                orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.all_copy_orthologs_df['species'] == id]
+                orthologs_and_cds_info = orthologs_for_id.merge(cds_data, how = 'left', left_on = 'protein_id', right_on = 'protein_id')
+                
             temp_1 = len(orthologs_and_cds_info[orthologs_and_cds_info['name']==orthologs_and_cds_info['name']])
             temp_2 = orthologs_and_cds_info.protein_id.nunique()
             match_stats.append([id, temp_1, temp_2, round(temp_1/temp_2*100,1)]) 
@@ -366,6 +378,7 @@ class Ortholog_Sequence_Dataset:
 
     def species_info(self):
         return self.sequence_data.drop_duplicates(['name','species'])[['name','species']]
+    
     
 class Alignment:
     def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): #  group_id, mvave_len, remove_insertions = 'Y', consensus = 1):
