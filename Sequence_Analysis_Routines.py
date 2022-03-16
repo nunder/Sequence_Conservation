@@ -215,7 +215,7 @@ def parse_genbank(input_filename, non_cds_offset = 0):
             df.at[i,'non_cds_seq']=str(genome_record.seq[int(r['end']):int(r['next_start'])])
             df.at[i,'non_cds_offset_seq']=str(genome_record.seq[max(0,int(r['end'])-offset):min(len(full_sequence),int(r['next_start'])+offset)])
             df.at[i,'non_cds_offset_start']=max(0,int(r['end'])-offset)
-            df.at[i,'non_cds_offset_stop']= min(len(full_sequence),int(r['next_start'])+offset)
+            df.at[i,'non_cds_offset_end']= min(len(full_sequence),int(r['next_start'])+offset)
             df.at[i,'ss_non_cds_start'] = int(r['end'])
             df.at[i,'upstream_non_cds_start'] = int(r['prev_end'])
             df.at[i,'upstream_non_cds_end'] = int(r['start'])
@@ -235,7 +235,7 @@ def parse_genbank(input_filename, non_cds_offset = 0):
             df.at[i,'non_cds_seq']=str((genome_record.seq[int(r['prev_end']):int(r['start'])]).reverse_complement())
             df.at[i,'non_cds_offset_seq']=str((genome_record.seq[max(0,int(r['prev_end'])-offset):min(len(full_sequence),int(r['start']) + offset)]).reverse_complement())
             df.at[i,'non_cds_offset_start']=max(0,int(r['prev_end'])-offset)
-            df.at[i,'non_cds_offset_stop']= min(len(full_sequence),int(r['start']) + offset)
+            df.at[i,'non_cds_offset_end']= min(len(full_sequence),int(r['start']) + offset)
             df.at[i,'upstream_non_cds_start'] = int(r['end'])
             df.at[i,'upstream_non_cds_end'] = int(r['next_start'])
             df.at[i,'upstream_non_cds_seq']=str((genome_record.seq[int(r['end']):int(r['next_start'])]).reverse_complement())
@@ -272,7 +272,7 @@ def parse_genbank(input_filename, non_cds_offset = 0):
     df = df[['name','type','locus_tag','previous_locus_tag','next_locus_tag','protein_id','bp_restrict','loc','non_cds_loc','upstream_non_cds_loc','ss_non_cds_loc','strand','prev_strand',
              'next_strand', 'start','end', 'cds_seq','non_cds_seq', 'non_cds_offset_seq','upstream_non_cds_seq','upstream_non_cds_offset_seq', 'non_cds_start','non_cds_end','upstream_non_cds_start',
              'upstream_non_cds_end','ss_non_cds_seq','cds_length', 'non_cds_length','upstream_non_cds_length','ss_non_cds_length', 'non_cds_offset_length',
-             'non_cds_offset_start','non_cds_offset_stop','upstream_non_cds_offset_length','upstream_non_cds_offset_start','upstream_non_cds_offset_end']]                                  
+             'non_cds_offset_start','non_cds_offset_end','upstream_non_cds_offset_length','upstream_non_cds_offset_start','upstream_non_cds_offset_end']]                                  
     return df
 
 def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
