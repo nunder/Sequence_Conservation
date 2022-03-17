@@ -285,7 +285,7 @@ def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
     if alphabet_name == 'AA':
         alphabet_list = ['D', 'I', 'A', 'S', 'P', 'Y', 'V', 'Q', 'T', '*', 'H', 'G', 'R', 'F', 'W', 'N', 'C', 'K', 'L', 'M', 'E']
     elif alphabet_name == 'NT':
-        alphabet_list =['A','C','T','G']
+        alphabet_list =['A','C','G','T']
     if insertions_as_background == False:
         alphabet_list.append(insertion_character)
     if len(background_probabilities) > 0:
@@ -297,6 +297,7 @@ def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
     sequence_length = len(sequence_list[0])
     relent_list = []
     cumulative_relent = 0
+    symbol_entropies = [[] for k in range(num_symbols)]
     for i in range(sequence_length):
         relent = 0
         vals = [v[i] for v in sequence_list]
@@ -307,15 +308,17 @@ def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
                 else:
                     ct = vals.count(alphabet_list[j]) 
                 if ct == 0:
-                    pass
+                    temp = 0
                 else:
-                    relent = relent + (ct/num_sequences) * math.log((ct/num_sequences)/background_probs[j],2)
+                    temp = (ct/num_sequences) * math.log((ct/num_sequences)/background_probs[j],2)
+                symbol_entropies[j].append(temp)
+                relent = relent + temp
             cumulative_relent = cumulative_relent + relent  
             relent_list.append(relent)
     if element_wise == True:
-        return relent_list
+        return relent_list, symbol_entropies
     else:
-        return cumulative_relent
+        return cumulative_relent, symbol_entropies
 
 
 class Ortholog_Grouping:
@@ -397,6 +400,7 @@ class Alignment:
         self.master_species = master_species
         self.master_species_index = self.sequence_names.index(self.master_species)  
         self.relative_entropy = []
+        self.symbol_entropies = []
         self.mvave_relative_entropy = [] 
         self.master_species_modified_sequence_insertions = []
         self.master_species_modified_sequence = self.modified_sequence_list[self.master_species_index]
@@ -439,12 +443,12 @@ class Alignment:
         
     def calculate_entropies(self, mvave_len = 1, modified=True):
         if modified == True:
-            self.relative_entropy = relative_entropy(self.modified_sequence_list,alphabet_name = self.alphabet_name)
+            self.relative_entropy, self.symbol_entropies = relative_entropy(self.modified_sequence_list,alphabet_name = self.alphabet_name)
         else:
-            self.relative_entropy = relative_entropy(self.sequence_list,alphabet_name = self.alphabet_name)
+            self.relative_entropy, self.symbol_entropies = relative_entropy(self.sequence_list,alphabet_name = self.alphabet_name)
         self.mave_relative_entropy = []
         for k in range(len(self.relative_entropy)):
-            mv_temp = int(mvave_len/2)
+            mv_temp = max(int(mvave_len/2),1)
             if ((k + mv_temp <= len(self.relative_entropy)) and (k-mv_temp >= 0)):
                 self.mvave_relative_entropy.append(mean(self.relative_entropy[k-mv_temp:k+mv_temp]))
             else:
@@ -467,6 +471,32 @@ class Alignment:
                 break
         return ans   
 
+    def find_pattern(self, search_str, start_pos, end_pos, min_entropy, max_mismatches):
+        self.calculate_entropies()
+        search_len = len(search_str)
+        search_positions = []
+        match_starts = []
+        for i in range(search_len):
+            if search_str[i] == 'N':
+                search_positions.append(-1)
+            else:
+                search_positions.append(self.non_insert_symbols.index(search_str[i]))
+        i = start_pos
+        while i <= end_pos - search_len:
+            num_mismatches = 0
+            for j in range(search_len):
+                if search_positions[j] == -1:
+                    pass
+                elif self.symbol_entropies[search_positions[j]][i+j] < min_entropy:
+                    num_mismatches += 1
+                else:
+                    pass
+            if num_mismatches > max_mismatches:
+                pass
+            else:
+                match_starts.append(i)
+            i += 1
+        return match_starts   
     
 class HMM:
     def __init__(self, initial_state_probabilities, transition_probabilities, observation_probabilities, termination = False):
@@ -479,6 +509,7 @@ class HMM:
         self.viterbi_probability = 0
         self.forward_probabilities = []
         self.backward_probabilities = []
+        self.state_probabilities = []
         self.forward_ll = 0
         self.backward_ll = 0
     
@@ -562,8 +593,15 @@ class HMM:
             else:
                 temp = self.sum_logs(temp, math.log(self.initial_state_probabilities[t]) + self.backward_probabilities[t, 0] + math.log(self.observation_probabilities[t,0]))
         self.backward_ll = temp
-
-        
+    
+    def calculate_state_probabilities(self):
+        for s in range(self.num_states):
+            c = self.forward_probabilities[s] + self.backward_probabilities[s]
+            self.state_probabilities.append([math.exp(x - self.forward_ll) for x in c])
+    
+    def calculate_probabilities(self):
+        self.viterbi(); self.forward(); self.backward(); self.calculate_state_probabilities()
+    
 def cons_mutation_probs(params, alignment_list, alignment_names, num_symbols, sequence_name_dict, master_species_index):    
     num_states = 3
     align_list =  alignment_list
