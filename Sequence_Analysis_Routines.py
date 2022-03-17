@@ -471,31 +471,35 @@ class Alignment:
                 break
         return ans   
 
-    def find_pattern(self, search_str, start_pos, end_pos, min_entropy, max_mismatches):
+    def find_pattern(self, search_str_list, start_pos, end_pos, min_entropy, max_mismatches, in_frame = False, frame_start = 0):
         self.calculate_entropies()
-        search_len = len(search_str)
-        search_positions = []
         match_starts = []
-        for i in range(search_len):
-            if search_str[i] == 'N':
-                search_positions.append(-1)
-            else:
-                search_positions.append(self.non_insert_symbols.index(search_str[i]))
-        i = start_pos
-        while i <= end_pos - search_len:
-            num_mismatches = 0
-            for j in range(search_len):
-                if search_positions[j] == -1:
-                    pass
-                elif self.symbol_entropies[search_positions[j]][i+j] < min_entropy:
-                    num_mismatches += 1
+        for search_str in search_str_list:
+            search_len = len(search_str)
+            search_positions = []
+            for i in range(search_len):
+                if search_str[i] == 'N':
+                    search_positions.append(-1)
                 else:
+                    search_positions.append(self.non_insert_symbols.index(search_str[i]))
+            i = start_pos
+            while i <= end_pos - search_len:
+                if (in_frame == True) and not((i - frame_start)%3 == 0):
+                    i += 1
+                    continue
+                num_mismatches = 0
+                for j in range(search_len):
+                    if search_positions[j] == -1:
+                        pass
+                    elif self.symbol_entropies[search_positions[j]][i+j] < min_entropy:
+                        num_mismatches += 1
+                    else:
+                        pass
+                if num_mismatches > max_mismatches:
                     pass
-            if num_mismatches > max_mismatches:
-                pass
-            else:
-                match_starts.append(i)
-            i += 1
+                else:
+                    match_starts.append(i)
+                i += 1
         return match_starts   
     
 class HMM:
