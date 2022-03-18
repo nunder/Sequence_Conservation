@@ -153,7 +153,7 @@ def align_and_build(id_list, num_subsets, subset_num, source_data, length_field,
                 pass
             delete_if_exists(out_loc +'temp'+str(j)+'.fasta')
 
-def parse_genbank(input_filename, non_cds_offset = 0):
+def parse_genbank(input_filename, non_cds_offset = 0, cds_extended_region_offset = 0):
     offset = non_cds_offset
     temp = list()
     genome_record = next(SeqIO.parse(input_filename, "genbank"))
@@ -210,6 +210,9 @@ def parse_genbank(input_filename, non_cds_offset = 0):
                 df.at[i,'bp_restrict'] = 0
             else:
                 df.at[i,'bp_restrict'] = 1
+            df.at[i,'cds_extended_region_seq']=str(genome_record.seq[max(0, int(r['start']) - cds_extended_region_offset):min(len(full_sequence),int(r['end'])+cds_extended_region_offset)])
+            df.at[i,'cds_extended_region_start']= max(0, int(r['start']) - cds_extended_region_offset)
+            df.at[i,'cds_extended_region_end']= min(len(full_sequence),int(r['end'])+cds_extended_region_offset)
             df.at[i,'non_cds_start'] = int(r['end'])
             df.at[i,'non_cds_end'] = int(r['next_start'])
             df.at[i,'non_cds_seq']=str(genome_record.seq[int(r['end']):int(r['next_start'])])
@@ -230,6 +233,9 @@ def parse_genbank(input_filename, non_cds_offset = 0):
                 df.at[i,'bp_restrict'] = 0
             else:
                 df.at[i,'bp_restrict'] = 1
+            df.at[i,'cds_extended_region_seq']=str((genome_record.seq[max(0, int(r['start']) - cds_extended_region_offset):min(len(full_sequence),int(r['end'])+cds_extended_region_offset)]).reverse_complement())
+            df.at[i,'cds_extended_region_start']= max(0, int(r['start']) - cds_extended_region_offset)
+            df.at[i,'cds_extended_region_end']= min(len(full_sequence),int(r['end'])+cds_extended_region_offset)
             df.at[i,'non_cds_start'] = int(r['prev_end'])
             df.at[i,'non_cds_end'] = int(r['start'])
             df.at[i,'non_cds_seq']=str((genome_record.seq[int(r['prev_end']):int(r['start'])]).reverse_complement())
@@ -255,6 +261,7 @@ def parse_genbank(input_filename, non_cds_offset = 0):
                 df.at[i,'non_cds_length'] = 0
             df.at[i,'non_cds_offset_length'] = len(r['non_cds_offset_seq'])  
             df.at[i,'upstream_non_cds_offset_length'] = len(r['upstream_non_cds_offset_seq'])  
+            df.at[i,'cds_extended_region_length'] = len(r['cds_extended_region_seq'])  
             if (r['upstream_non_cds_start'] < r['upstream_non_cds_end']):
                 df.at[i,'upstream_non_cds_loc'] = str(SeqFeature(FeatureLocation(r['upstream_non_cds_start'], r['upstream_non_cds_end']), type="gene", strand=r['strand']).location)
                 df.at[i,'upstream_non_cds_length'] = r['upstream_non_cds_end'] - r['upstream_non_cds_start']
@@ -270,8 +277,9 @@ def parse_genbank(input_filename, non_cds_offset = 0):
                 df.at[i,'ss_non_cds_length'] = 0
                    
     df = df[['name','type','locus_tag','previous_locus_tag','next_locus_tag','protein_id','bp_restrict','loc','non_cds_loc','upstream_non_cds_loc','ss_non_cds_loc','strand','prev_strand',
-             'next_strand', 'start','end', 'cds_seq','non_cds_seq', 'non_cds_offset_seq','upstream_non_cds_seq','upstream_non_cds_offset_seq', 'non_cds_start','non_cds_end','upstream_non_cds_start',
-             'upstream_non_cds_end','ss_non_cds_seq','cds_length', 'non_cds_length','upstream_non_cds_length','ss_non_cds_length', 'non_cds_offset_length',
+             'next_strand', 'start','end', 'cds_seq','non_cds_seq', 'non_cds_offset_seq','upstream_non_cds_seq','upstream_non_cds_offset_seq', 'cds_extended_region_seq', 'non_cds_start','non_cds_end','upstream_non_cds_start',
+             'upstream_non_cds_end','cds_extended_region_start','cds_extended_region_end','ss_non_cds_seq','cds_length', 
+             'non_cds_length','upstream_non_cds_length','cds_extended_region_length', 'ss_non_cds_length', 'non_cds_offset_length',
              'non_cds_offset_start','non_cds_offset_end','upstream_non_cds_offset_length','upstream_non_cds_offset_start','upstream_non_cds_offset_end']]                                  
     return df
 
@@ -350,11 +358,11 @@ class Ortholog_Grouping:
 
 
 class Ortholog_Sequence_Dataset:
-    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, offset, master_species, single_copy = True):
+    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, cds_extended_region_offset, master_species, single_copy = True):
         df_list = list()
         match_stats = list()
         for id in tqdm(genome_ids):
-            cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',offset)
+            cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',non_cds_offset, cds_extended_region_offset)
             
             if single_copy == True:
                 orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.single_copy_orthologs_df['species'] == id]
@@ -471,35 +479,57 @@ class Alignment:
                 break
         return ans   
 
-    def find_pattern(self, search_str_list, start_pos, end_pos, min_entropy, max_mismatches, in_frame = False, frame_start = 0):
-        self.calculate_entropies()
+    def find_pattern(self, search_str_list, start_pos, end_pos, min_entropy, max_mismatches, in_frame = False, frame_start = 0, method = 'count'):
         match_starts = []
-        for search_str in search_str_list:
-            search_len = len(search_str)
-            search_positions = []
-            for i in range(search_len):
-                if search_str[i] == 'N':
-                    search_positions.append(-1)
-                else:
-                    search_positions.append(self.non_insert_symbols.index(search_str[i]))
-            i = start_pos
-            while i <= end_pos - search_len:
-                if (in_frame == True) and not((i - frame_start)%3 == 0):
-                    i += 1
-                    continue
-                num_mismatches = 0
-                for j in range(search_len):
-                    if search_positions[j] == -1:
-                        pass
-                    elif self.symbol_entropies[search_positions[j]][i+j] < min_entropy:
-                        num_mismatches += 1
+        if method == 'entropy':
+            self.calculate_entropies()
+            for search_str in search_str_list:
+                search_len = len(search_str)
+                search_positions = []
+                for i in range(search_len):
+                    if search_str[i] == 'N':
+                        search_positions.append(-1)
                     else:
+                        search_positions.append(self.non_insert_symbols.index(search_str[i]))
+                i = start_pos
+                while i <= end_pos - search_len:
+                    if (in_frame == True) and not((i - frame_start)%3 == 0):
+                        i += 1
+                        continue
+                    num_mismatches = 0
+                    for j in range(search_len):
+                        if search_positions[j] == -1:
+                            pass
+                        elif self.symbol_entropies[search_positions[j]][i+j] < min_entropy:
+                            num_mismatches += 1
+                        else:
+                            pass
+                    if num_mismatches > max_mismatches:
                         pass
-                if num_mismatches > max_mismatches:
-                    pass
-                else:
-                    match_starts.append(i)
-                i += 1
+                    else:
+                        match_starts.append(i)
+                    i += 1
+        else:
+                i = start_pos
+                search_len = len(search_str_list[0])
+                while i <= end_pos - search_len:
+                    if (in_frame == True) and not((i - frame_start)%3 == 0):
+                        i += 1
+                        continue
+                    num_mismatches = 0
+                    for j in range(self.num_sequences):
+                        matched = 0
+                        for search_str in search_str_list:
+                            test_seq = self.modified_sequence_list[j][i:i+search_len]
+                            if test_seq == search_str:
+                                matched = 1
+                        if matched == 0:
+                            num_mismatches += 1
+                    if num_mismatches > max_mismatches:
+                        pass
+                    else:
+                        match_starts.append(i)
+                    i += 1
         return match_starts   
     
 class HMM:
