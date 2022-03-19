@@ -16,47 +16,7 @@ from statistics import mean, stdev
 import math
 from scipy import linalg
 import scipy.stats as ss
-
-###    File routines ###
-
-def wslname(windows_loc):
-    outstr = '/mnt/'+windows_loc[0].lower()+windows_loc[2:]
-    return outstr
-
-def list_dirs(dir):
-    r = []
-    s = []
-    for root, dirs, files in os.walk(dir):
-        for name in dirs:
-            if name == '.ipynb_checkpoints':
-                pass
-            else:
-                s.append(name)
-    return s
-
-def list_files(dir):
-    r = []
-    s = []
-    for root, dirs, files in os.walk(dir):
-        for name in files:
-            if name == '.ipynb_checkpoints':
-                pass
-            else:
-                s.append(name)
-    return s
-
-def delete_if_exists(filename): 
-    if os.path.exists(filename):
-        os.remove(filename)
-
-def chunk_list(id_list, num_subsets, subset_num):
-    len_ids = len(id_list)
-    subset_size = int(len_ids / num_subsets)
-    if subset_num == num_subsets:
-        ids = id_list[(subset_num - 1) * subset_size:]
-    else:
-        ids = id_list[(subset_num - 1) * subset_size: (subset_num ) * subset_size]
-    return ids
+from . import Utilities as util
 
 #  Dataset manipulation
 
@@ -128,7 +88,7 @@ def read_fasta_to_arrays(filename):
     
 def align_and_build(id_list, num_subsets, subset_num, source_data, length_field, seq_field, out_loc, min_species): 
     muscle_exe = 'C:/Users/nicho/Muscle/muscle3.8.31_i86win32.exe'
-    ids = chunk_list(id_list, num_subsets, subset_num)
+    ids = util.chunk_list(id_list, num_subsets, subset_num)
     for j in ids:
         temp_df = source_data[source_data['group_id'] == j]
         num_non_zero = 0
@@ -151,7 +111,7 @@ def align_and_build(id_list, num_subsets, subset_num, source_data, length_field,
                 stdout, stderr = cline()
             except Exception as e:
                 pass
-            delete_if_exists(out_loc +'temp'+str(j)+'.fasta')
+            util.delete_if_exists(out_loc +'temp'+str(j)+'.fasta')
 
 def parse_genbank(input_filename, non_cds_offset = 0, cds_extended_region_offset = 0):
     offset = non_cds_offset
