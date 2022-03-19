@@ -113,7 +113,7 @@ def align_and_build(id_list, num_subsets, subset_num, source_data, length_field,
                 pass
             util.delete_if_exists(out_loc +'temp'+str(j)+'.fasta')
 
-def parse_genbank(input_filename, non_cds_offset = 0, cds_extended_region_offset = 0):
+def parse_genbank(input_filename, non_cds_offset = 0):
     offset = non_cds_offset
     temp = list()
     genome_record = next(SeqIO.parse(input_filename, "genbank"))
@@ -170,9 +170,7 @@ def parse_genbank(input_filename, non_cds_offset = 0, cds_extended_region_offset
                 df.at[i,'bp_restrict'] = 0
             else:
                 df.at[i,'bp_restrict'] = 1
-            df.at[i,'cds_extended_region_seq']=str(genome_record.seq[max(0, int(r['start']) - cds_extended_region_offset):min(len(full_sequence),int(r['end'])+cds_extended_region_offset)])
-            df.at[i,'cds_extended_region_start']= max(0, int(r['start']) - cds_extended_region_offset)
-            df.at[i,'cds_extended_region_end']= min(len(full_sequence),int(r['end'])+cds_extended_region_offset)
+          
             df.at[i,'non_cds_start'] = int(r['end'])
             df.at[i,'non_cds_end'] = int(r['next_start'])
             df.at[i,'non_cds_seq']=str(genome_record.seq[int(r['end']):int(r['next_start'])])
@@ -188,14 +186,14 @@ def parse_genbank(input_filename, non_cds_offset = 0, cds_extended_region_offset
             df.at[i,'upstream_non_cds_offset_end']= min(len(full_sequence),int(r['start'])+offset)
             df.at[i,'ss_non_cds_end'] = int(r['ss_next_start'])
             df.at[i,'ss_non_cds_seq']=str(genome_record.seq[int(r['end']):int(r['ss_next_start'])])
+            df.at[i,'cds_extended_region_seq']= str(genome_record.seq[int(r['prev_end']):int(r['start'])]) + r['cds_seq'] + str(genome_record.seq[int(r['end']):int(r['next_start'])])
+            df.at[i,'cds_extended_region_start']= int(r['prev_end'])
+            df.at[i,'cds_extended_region_end']= int(r['next_start'])
         else:
             if r['prev_strand']== -1:
                 df.at[i,'bp_restrict'] = 0
             else:
                 df.at[i,'bp_restrict'] = 1
-            df.at[i,'cds_extended_region_seq']=str((genome_record.seq[max(0, int(r['start']) - cds_extended_region_offset):min(len(full_sequence),int(r['end'])+cds_extended_region_offset)]).reverse_complement())
-            df.at[i,'cds_extended_region_start']= max(0, int(r['start']) - cds_extended_region_offset)
-            df.at[i,'cds_extended_region_end']= min(len(full_sequence),int(r['end'])+cds_extended_region_offset)
             df.at[i,'non_cds_start'] = int(r['prev_end'])
             df.at[i,'non_cds_end'] = int(r['start'])
             df.at[i,'non_cds_seq']=str((genome_record.seq[int(r['prev_end']):int(r['start'])]).reverse_complement())
@@ -211,6 +209,9 @@ def parse_genbank(input_filename, non_cds_offset = 0, cds_extended_region_offset
             df.at[i,'ss_non_cds_start'] = int(r['ss_prev_end'])
             df.at[i,'ss_non_cds_end'] = int(r['start'])
             df.at[i,'ss_non_cds_seq']=str((genome_record.seq[int(r['ss_prev_end']):int(r['start'])]).reverse_complement())
+            df.at[i,'cds_extended_region_seq']= str((genome_record.seq[int(r['end']):int(r['next_start'])]).reverse_complement()) + r['cds_seq'] + str((genome_record.seq[int(r['prev_end']):int(r['start'])]).reverse_complement())
+            df.at[i,'cds_extended_region_start']= int(r['prev_end'])
+            df.at[i,'cds_extended_region_end']= int(r['next_start'])
     
     for i, r in df.iterrows():
             if (r['non_cds_start'] < r['non_cds_end']):
@@ -318,11 +319,11 @@ class Ortholog_Grouping:
 
 
 class Ortholog_Sequence_Dataset:
-    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, cds_extended_region_offset, master_species, single_copy = True):
+    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, master_species, single_copy = True):
         df_list = list()
         match_stats = list()
         for id in tqdm(genome_ids):
-            cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',non_cds_offset, cds_extended_region_offset)
+            cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',non_cds_offset)
             
             if single_copy == True:
                 orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.single_copy_orthologs_df['species'] == id]
@@ -352,7 +353,7 @@ class Ortholog_Sequence_Dataset:
     
     
 class Alignment:
-    def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): #  group_id, mvave_len, remove_insertions = 'Y', consensus = 1):
+    def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): 
         temp = read_fasta_to_arrays(fileloc)
         self.alphabet_name = alphabet_name
         self.non_insert_symbols = []
