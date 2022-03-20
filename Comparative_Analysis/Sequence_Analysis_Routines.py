@@ -415,7 +415,7 @@ class Alignment:
             self.relative_entropy, self.symbol_entropies = relative_entropy(self.modified_sequence_list,alphabet_name = self.alphabet_name)
         else:
             self.relative_entropy, self.symbol_entropies = relative_entropy(self.sequence_list,alphabet_name = self.alphabet_name)
-        self.mave_relative_entropy = []
+        self.mvave_relative_entropy = []
         for k in range(len(self.relative_entropy)):
             mv_temp = max(int(mvave_len/2),1)
             if ((k + mv_temp <= len(self.relative_entropy)) and (k-mv_temp >= 0)):

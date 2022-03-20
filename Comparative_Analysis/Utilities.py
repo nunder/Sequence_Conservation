@@ -49,11 +49,21 @@ def delete_if_exists(filename):
     if os.path.exists(filename):
         os.remove(filename)
 
+#def chunk_list(id_list, num_subsets, subset_num):
+#    len_ids = len(id_list)
+#    subset_size = int(len_ids / num_subsets)
+#    if subset_num == num_subsets:
+#        ids = id_list[(subset_num - 1) * subset_size:]
+#    else:
+#        ids = id_list[(subset_num - 1) * subset_size: (subset_num ) * subset_size]
+#    return ids
+
 def chunk_list(id_list, num_subsets, subset_num):
     len_ids = len(id_list)
     subset_size = int(len_ids / num_subsets)
-    if subset_num == num_subsets:
-        ids = id_list[(subset_num - 1) * subset_size:]
+    remainder = len_ids % num_subsets
+    if subset_num <= remainder:
+        ids = id_list[(subset_num - 1) * (subset_size + 1): subset_num * (subset_size + 1)]
     else:
-        ids = id_list[(subset_num - 1) * subset_size: (subset_num ) * subset_size]
+        ids = id_list[len_ids - (num_subsets - (subset_num -1))*subset_size : len_ids - (num_subsets - subset_num)*subset_size]
     return ids
