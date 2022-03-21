@@ -67,3 +67,54 @@ def chunk_list(id_list, num_subsets, subset_num):
     else:
         ids = id_list[len_ids - (num_subsets - (subset_num -1))*subset_size : len_ids - (num_subsets - subset_num)*subset_size]
     return ids
+
+def concatenate_fasta(directory, file_list, output_file):
+    sequence_dict = {}
+    for filename in file_list:
+        f = directory + '/' + filename
+        sequence_count = 0
+        with open(f,'r') as ofile:
+                first_seq = 0
+                for l in ofile:
+                    m = l.strip('\n')
+                    if m[0] == '>':
+                        sequence_count += 1
+                        if first_seq == 0:
+                            sequence_name = m[1:]
+                            outstr = ''
+                        else:
+                            sequence_dict[(filename,sequence_name)] = outstr
+                            sequence_name = m[1:]
+                            outstr = ''
+                    else:
+                        first_seq = 1
+                        outstr += m
+                sequence_dict[(filename,sequence_name)] = outstr
+                sequence_name = m[1:]
+    name_list = list(set([i[1] for i in list(sequence_dict.keys())]))
+    with open(output_file,'w') as outfile:
+        for name in name_list:
+            outfile.write(">" + name + "\n")      
+            outstring = []
+            for filename in file_list:
+                outstring.append(sequence_dict[(filename, name)])
+            outfile.write(''.join(outstring) + "\n")
+    
+def read_fasta_to_arrays(filename):
+    with open(filename,'r') as ofile: 
+            sequence_names = []
+            sequence_list = []
+            first_seq = 0
+            for l in ofile:
+                m = l.strip('\n')
+                if m[0] == '>':
+                    if first_seq > 0:
+                        sequence_list.append(outstr)
+                    outstr = ''
+                    sequence_names.append(m[1:])
+                else:
+                    first_seq = 1
+                    outstr += m
+            sequence_list.append(outstr)
+    num_sequences = len(sequence_names) 
+    return [sequence_names, sequence_list]

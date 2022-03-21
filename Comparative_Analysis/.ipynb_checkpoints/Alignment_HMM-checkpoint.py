@@ -19,6 +19,7 @@ import scipy.stats as ss
 from . import Utilities as util
 from . import HMM as hmm
 from . import Sequence_Analysis_Routines as sar
+from . import Alignment as align
 
 class Alignment_HMM:
     
@@ -29,7 +30,7 @@ class Alignment_HMM:
         self.alignment_ids = [int(i.split('.')[0]) for i in alignment_ids]
         self.alignment_dict = {}
         for group_id in tqdm(self.alignment_ids):
-            alignment = sar.Alignment(alignment_dir + '/' + str(group_id) + '.fasta', master_species_id, 'NT')
+            alignment = align.Alignment(alignment_dir + '/' + str(group_id) + '.fasta', master_species_id, 'NT')
             alignment.modify_sequence(1, False, False)
             self.alignment_dict[group_id] = alignment
         

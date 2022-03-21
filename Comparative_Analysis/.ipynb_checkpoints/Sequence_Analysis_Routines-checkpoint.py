@@ -35,57 +35,7 @@ def generate_protein_file(input_fileloc, output_fileloc):
 def run_sonic_paranoid(protein_file_location, output_location, run_name):
     subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + wslname(protein_file_location) +' -o ' + wslname(output_location) + ' -p ' + run_name + ' -t 8 -ot' , shell=True)
 
-def concatenate_fasta(directory, file_list, output_file):
-    sequence_dict = {}
-    for filename in file_list:
-        f = directory + '/' + filename
-        sequence_count = 0
-        with open(f,'r') as ofile:
-                first_seq = 0
-                for l in ofile:
-                    m = l.strip('\n')
-                    if m[0] == '>':
-                        sequence_count += 1
-                        if first_seq == 0:
-                            sequence_name = m[1:]
-                            outstr = ''
-                        else:
-                            sequence_dict[(filename,sequence_name)] = outstr
-                            sequence_name = m[1:]
-                            outstr = ''
-                    else:
-                        first_seq = 1
-                        outstr += m
-                sequence_dict[(filename,sequence_name)] = outstr
-                sequence_name = m[1:]
-    name_list = list(set([i[1] for i in list(sequence_dict.keys())]))
-    with open(output_file,'w') as outfile:
-        for name in name_list:
-            outfile.write(">" + name + "\n")      
-            outstring = []
-            for filename in file_list:
-                outstring.append(sequence_dict[(filename, name)])
-            outfile.write(''.join(outstring) + "\n")
-    
-def read_fasta_to_arrays(filename):
-    with open(filename,'r') as ofile: 
-            sequence_names = []
-            sequence_list = []
-            first_seq = 0
-            for l in ofile:
-                m = l.strip('\n')
-                if m[0] == '>':
-                    if first_seq > 0:
-                        sequence_list.append(outstr)
-                    outstr = ''
-                    sequence_names.append(m[1:])
-                else:
-                    first_seq = 1
-                    outstr += m
-            sequence_list.append(outstr)
-    num_sequences = len(sequence_names) 
-    return [sequence_names, sequence_list]
-    
+
 def align_and_build(id_list, num_subsets, subset_num, source_data, length_field, seq_field, out_loc, min_species): 
     muscle_exe = 'C:/Users/nicho/Muscle/muscle3.8.31_i86win32.exe'
     ids = util.chunk_list(id_list, num_subsets, subset_num)
@@ -319,10 +269,26 @@ class Ortholog_Grouping:
 
 
 class Ortholog_Sequence_Dataset:
-    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, master_species, single_copy = True):
-        df_list = list()
-        match_stats = list()
-        for id in tqdm(genome_ids):
+    def __init__(self, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, master_species, single_copy = True, num_cores = 16):
+        core_numbers = list(range(1, num_cores+1))
+        parallel_output = Parallel(n_jobs=-1)(delayed(self.parallel_populate)(num_cores, core_number, ortholog_grouping, genome_datasets_dir, genome_ids, 
+                                                                              non_cds_offset, master_species, single_copy) for core_number in tqdm(core_numbers))
+        df_list = [item for sublist in parallel_output for item in sublist]
+        self.sequence_data = pd.concat(df_list)  
+        self.master_species = master_species
+        #self.sequence_data.to_csv(output_dir + '/Ortholog_Master_Data/'+'sequence_master_data.csv')
+    
+    def master_species_info(self, group_id, fieldname):
+        temp_df = self.sequence_data[self.sequence_data['group_id'] == group_id]
+        return temp_df[temp_df['species'] == self.master_species].iloc[0][fieldname]
+
+    def species_info(self):
+        return self.sequence_data.drop_duplicates(['name','species'])[['name','species']]
+    
+    def parallel_populate(self, num_subsets, subset_num, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, master_species, single_copy): 
+        genomes = util.chunk_list(genome_ids, num_subsets, subset_num)
+        df_list = []
+        for id in genomes:
             cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',non_cds_offset)
             
             if single_copy == True:
@@ -332,29 +298,13 @@ class Ortholog_Sequence_Dataset:
             else:
                 orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.all_copy_orthologs_df['species'] == id]
                 orthologs_and_cds_info = orthologs_for_id.merge(cds_data, how = 'left', left_on = 'protein_id', right_on = 'protein_id')
-                
-            temp_1 = len(orthologs_and_cds_info[orthologs_and_cds_info['name']==orthologs_and_cds_info['name']])
-            temp_2 = orthologs_and_cds_info.protein_id.nunique()
-            match_stats.append([id, temp_1, temp_2, round(temp_1/temp_2*100,1)]) 
             orthologs_and_cds_info = orthologs_and_cds_info[orthologs_and_cds_info['name']==orthologs_and_cds_info['name']]    #Remove proteins which can't be matched back
             df_list.append(orthologs_and_cds_info)
-        self.sequence_data = pd.concat(df_list)  
-        self.match_info = pd.DataFrame(match_stats, columns = ['id','num_orthologs','num_matches','match_pct'])
-        self.master_species = master_species
-        #dna_data.to_csv(output_dir + '/Ortholog_Master_Data/'+'dna_data.csv')
-        #match_info.to_csv(output_dir + '/Ortholog_Master_Data/'+'match_info.csv')
-    
-    def master_species_info(self, group_id, fieldname):
-        temp_df = self.sequence_data[self.sequence_data['group_id'] == group_id]
-        return temp_df[temp_df['species'] == self.master_species].iloc[0][fieldname]
-
-    def species_info(self):
-        return self.sequence_data.drop_duplicates(['name','species'])[['name','species']]
-    
+        return df_list
     
 class Alignment:
     def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): 
-        temp = read_fasta_to_arrays(fileloc)
+        temp = util.read_fasta_to_arrays(fileloc)
         self.alphabet_name = alphabet_name
         self.non_insert_symbols = []
         if self.alphabet_name == 'NT':
@@ -415,7 +365,7 @@ class Alignment:
             self.relative_entropy, self.symbol_entropies = relative_entropy(self.modified_sequence_list,alphabet_name = self.alphabet_name)
         else:
             self.relative_entropy, self.symbol_entropies = relative_entropy(self.sequence_list,alphabet_name = self.alphabet_name)
-        self.mave_relative_entropy = []
+        self.mvave_relative_entropy = []
         for k in range(len(self.relative_entropy)):
             mv_temp = max(int(mvave_len/2),1)
             if ((k + mv_temp <= len(self.relative_entropy)) and (k-mv_temp >= 0)):
