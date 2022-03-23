@@ -23,7 +23,7 @@ class HMM:
         self.initial_state_probabilities = initial_state_probabilities
         self.transition_probabilities = transition_probabilities
         self.observation_probabilities = observation_probabilities
-        self.num_states = observation_probabilities.shape[0]
+        self.num_states = len(initial_state_probabilities)
         self.observation_length = observation_probabilities.shape[1]
         self.viterbi_path = np.zeros(self.observation_length, dtype='int16')
         self.viterbi_probability = 0
@@ -96,7 +96,7 @@ class HMM:
     def backward(self):
         self.backward_probabilities = np.zeros((self.num_states, self.observation_length))
         for s in range(self.num_states):
-            self.backward_probabilities[s, self.observation_length - 1] = 0 #math.log(self.observation_probabilities[s, self.observation_length - 1])
+            self.backward_probabilities[s, self.observation_length - 1] = 0 
         for i in reversed(range(0, self.observation_length - 1)):
             for s in range(self.num_states):
                 temp = 0
@@ -119,7 +119,8 @@ class HMM:
             c = self.forward_probabilities[s] + self.backward_probabilities[s]
             self.state_probabilities.append([math.exp(x - self.forward_ll) for x in c])
     
+                  
     def calculate_probabilities(self):
-        self.viterbi(); self.forward(); self.backward(); self.calculate_state_probabilities()
+        self.viterbi(); self.forward(); self.backward(); self.calculate_state_probabilities(); 
 
 

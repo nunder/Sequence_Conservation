@@ -38,7 +38,7 @@ class Alignment_Analysis:
         
         initial_state_probabilities = [1.0/num_states]*num_states
         transition_probabilities, mutation_probabilities = Alignment_HMM_Model.alignment_hmm_model_inputs(fitted_parameters)
-        observation_probabilities = Alignment_HMM_Model.alignment_hmm_mutation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment)
+        observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment)
         self.hmm_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
         self.hmm_model.calculate_probabilities()
         self.buffer_end = non_cds_offset - 1

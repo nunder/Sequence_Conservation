@@ -114,7 +114,10 @@ class Alignment:
         self.master_species_modified_sequence_insertions = []
         self.master_species_modified_sequence = self.modified_sequence_list[self.master_species_index]
         self.replaced_indels = []
-       
+    
+    def species_index(self, species):
+        return self.sequence_names.index(species)
+    
     def modify_sequence(self, consensus, delete_insert_sites = False, randomize_insert_sites = False):
         self.modified_sequence_list = []
         for j in range(self.num_sequences):
