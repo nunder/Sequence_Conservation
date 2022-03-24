@@ -91,6 +91,10 @@ class Alignment_HMM:
             match_probs.append(matches/total_count)
         return match_probs
     
+    def convert_alignment_hmm_to_parameters(self, transition_probabilities, mutation_probabilities):
+        return [transition_probabilities[0,0], transition_probabilities[0,1]/(1-transition_probabilities[0,0]), transition_probabilities[1,1], transition_probabilities[1,0]/(1-transition_probabilities[1,1]), 
+                transition_probabilities[2,2], transition_probabilities[2,0]/(1-transition_probabilities[2,2]), mutation_probabilities[0], mutation_probabilities[1], mutation_probabilities[2]]
+    
     def alignment_hmm_model_inputs(self, params):
         a = params[0]
         b = (1-params[0])*(params[1])
@@ -123,51 +127,66 @@ class Alignment_HMM:
             total_probability += hm_model.forward_ll * -1
         return total_probability
 
-    def EM_update(self, num_subsets, subset_num, params, offset, min_length, all_species = True, comparison_species = ''):
-        for iter in tqdm(range(100)):
-            if iter == 0:
+    def EM_update_parameters(self, num_subsets, subset_num, offset, min_length, mutation_probabilities, transition_probabilities, all_species, comparison_species):
+        ids = util.chunk_list(self.alignment_ids, num_subsets, subset_num)
+        total_probability = 0
+        transition_counts = np.zeros((self.num_states, self.num_states))
+        match_emission_counts = np.zeros(self.num_states)
+        match_total_counts = np.zeros(self.num_states)
+        for group_id in ids:
+            alignment = self.alignment_dict[group_id]
+            align_list =  alignment.modified_sequence_list
+            align_names = alignment.sequence_names
+            len_align_list = len(align_list[0])
+            non_cds = [x[offset:len_align_list - offset] for x in align_list]
+            if len(non_cds[0]) < min_length:
+                continue
+            match_probs =  self.calculate_match_probs(non_cds, alignment, all_species, comparison_species)    
+            observation_probabilities = self.calculate_observation_probs(mutation_probabilities, non_cds, alignment, all_species, comparison_species)
+            observation_length = observation_probabilities.shape[1]
+            hm_model = hmm.HMM(self.initial_state_probabilities, transition_probabilities, observation_probabilities, termination = False)
+            hm_model.calculate_probabilities()
+            total_probability += hm_model.forward_ll * -1
+            prob_observation = hm_model.forward_ll
+
+            for s in range(self.num_states):
+                for t in range(self.num_states):
+                    temp = 0
+                    for i in range(observation_length - 1):
+                        if i == 0:
+                            temp = hm_model.forward_probabilities[s, i] + math.log(transition_probabilities[s, t]) + math.log(observation_probabilities[t, i+1]) + hm_model.backward_probabilities[t, i+1]
+                        else:
+                            temp = self.sum_logs(temp, hm_model.forward_probabilities[s, i] + math.log(transition_probabilities[s, t]) + math.log(observation_probabilities[t, i+1]) + hm_model.backward_probabilities[t, i+1])
+                    transition_counts[s, t] += math.exp(temp - prob_observation)
+
+            for s in range(self.num_states):
+                for i in range(observation_length - 1):
+                    match_emission_counts[s] += hm_model.state_probabilities[s][i] * match_probs[i]
+                    match_total_counts[s] += hm_model.state_probabilities[s][i]
+        return transition_counts, match_emission_counts, match_total_counts, total_probability
+    
+    def EM_update(self, num_subsets, params, offset, min_length, all_species = True, comparison_species = ''):
+        subset_numbers = list(range(1, num_subsets+1))
+        for iternum in tqdm(range(300)):
+            total_probability = 0
+            
+            if iternum == 0:
                 transition_probabilities, mutation_probabilities = self.alignment_hmm_model_inputs(params)
             else:
                 transition_probabilities = transition_counts
                 mutation_probabilities = match_emission_counts
-            ids = util.chunk_list(self.alignment_ids, num_subsets, subset_num)
-            total_probability = 0
+            parallel_output = Parallel(n_jobs=-1)(delayed(self.EM_update_parameters)(num_subsets, subset_num, offset, min_length, mutation_probabilities, transition_probabilities, all_species, comparison_species) for subset_num in subset_numbers)
             transition_counts = np.zeros((self.num_states, self.num_states))
             match_emission_counts = np.zeros(self.num_states)
             match_total_counts = np.zeros(self.num_states)
-            for group_id in ids:
-                alignment = self.alignment_dict[group_id]
-                align_list =  alignment.modified_sequence_list
-                align_names = alignment.sequence_names
-                len_align_list = len(align_list[0])
-                non_cds = [x[offset:len_align_list - offset] for x in align_list]
-                if len(non_cds[0]) < min_length:
-                    continue
-                match_probs =  self.calculate_match_probs(non_cds, alignment, all_species = True, comparison_species = '')    
-                observation_probabilities = self.calculate_observation_probs(mutation_probabilities, non_cds, alignment, all_species, comparison_species)
-                observation_length = observation_probabilities.shape[1]
-                hm_model = hmm.HMM(self.initial_state_probabilities, transition_probabilities, observation_probabilities, termination = False)
-                hm_model.calculate_probabilities()
-                if iter > 1 and abs(total_probability - (hm_model.forward_ll * -1)) < 0.001:
-                    break
-                total_probability += hm_model.forward_ll * -1
-                prob_observation = hm_model.forward_ll
-
+            for i in range(len(parallel_output)):
                 for s in range(self.num_states):
                     for t in range(self.num_states):
-                        temp = 0
-                        for i in range(observation_length - 1):
-                            if i == 0:
-                                temp = hm_model.forward_probabilities[s, i] + math.log(transition_probabilities[s, t]) + math.log(observation_probabilities[t, i+1]) + hm_model.backward_probabilities[t, i+1]
-                            else:
-                                temp = self.sum_logs(temp, hm_model.forward_probabilities[s, i] + math.log(transition_probabilities[s, t]) + math.log(observation_probabilities[t, i+1]) + hm_model.backward_probabilities[t, i+1])
-                        transition_counts[s, t] += math.exp(temp - prob_observation)
-                   
-                for s in range(self.num_states):
-                    for i in range(observation_length - 1):
-                        match_emission_counts[s] += hm_model.state_probabilities[s][i] * match_probs[i]
-                        match_total_counts[s] += hm_model.state_probabilities[s][i]
-
+                        transition_counts[s,t] += (parallel_output[i][0])[s,t]
+                    match_emission_counts[s] += (parallel_output[i][1])[s]
+                    match_total_counts[s] += (parallel_output[i][2])[s]
+                total_probability += parallel_output[i][3]
+            
             for s in range(self.num_states):
                 temp_1 = 0
                 for t in range(self.num_states):
@@ -176,5 +195,11 @@ class Alignment_HMM:
                     transition_counts[s, t] = transition_counts[s, t] / temp_1
             for s in range(self.num_states):
                 match_emission_counts[s] = match_emission_counts[s]  / match_total_counts[s]
-            if iter % 10 == 0:
-                print(transition_counts, match_emission_counts, total_probability)
+            if iternum > 1 and ((abs(total_probability - prev_total_probability) < 0.001) or (total_probability > prev_total_probability)):
+                break
+            prev_total_probability = total_probability
+
+        print(transition_counts, match_emission_counts, total_probability)
+        return(transition_counts, match_emission_counts, total_probability, self.convert_alignment_hmm_to_parameters(transition_counts, match_emission_counts))
+    
+    
