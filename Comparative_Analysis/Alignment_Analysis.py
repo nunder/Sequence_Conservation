@@ -24,7 +24,7 @@ from . import Alignment_HMM as alignment_hmm
 
 class Alignment_Analysis:
     
-    def __init__(self, analysis_type, alignment, num_states, non_cds_offset, group_id, fitted_parameters, project_dir, Alignment_HMM_Model, seq_data):
+    def __init__(self, analysis_type, alignment, num_states, non_cds_offset, group_id, fitted_parameters, project_dir, Alignment_HMM_Model, pairwise_fitted_parameters, seq_data):
         self.analysis_type = analysis_type
         self.group_id = group_id
         self.alignment = alignment 
@@ -41,6 +41,14 @@ class Alignment_Analysis:
         observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment)
         self.hmm_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
         self.hmm_model.calculate_probabilities()
+        
+        self.hmm_model_list = []
+        for params in pairwise_fitted_parameters:
+            transition_probabilities, mutation_probabilities = Alignment_HMM_Model.alignment_hmm_model_inputs(params[1])
+            observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment, all_species=False, comparison_species =params[0])
+            self.hmm_model_list.append(hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities))
+            self.hmm_model_list[-1].calculate_probabilities()
+            
         self.buffer_end = non_cds_offset - 1
         self.target_end = self.alignment.modified_sequence_length - non_cds_offset
         if analysis_type == 'Downstream':
@@ -96,12 +104,12 @@ class Alignment_Analysis:
 
         y = -1        
         
-        seqlogo = lm.Logo(counts_df, figsize = [30,2])
+        seqlogo = lm.Logo(counts_df, figsize = [30,6])
         seqlogo.style_spines(visible=False)
         seqlogo.style_spines(spines=['left'], visible=True, bounds=[0, 2])
         seqlogo.ax.set_xticks([])
         seqlogo.ax.set_yticks([0,2])
-        seqlogo.ax.set_ylim([-4, 2])
+        seqlogo.ax.set_ylim([-10, 2])
         seqlogo.ax.axhline(y, color = 'k', linewidth = 1)
         if self.analysis_type == 'Upstream':
             seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag_2)
@@ -163,6 +171,12 @@ class Alignment_Analysis:
         for i, state in enumerate(self.hmm_model.viterbi_path):
             if state in [0]:
                 seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
+                
+        for j, pairwise_hmm in enumerate(self.hmm_model_list):
+            for i, state in enumerate(pairwise_hmm.viterbi_path):
+                if state in [0]:
+                    seqlogo.ax.plot([i, i+1], [y-5-0.25*(j+1),y-5-0.25*(j+1)], color='black', linewidth=5, solid_capstyle='butt')
+        
         seqlogo.ax.text(0,4.5*y,self.locus_tag + ' ('+sign_symbol(self.locus_strand)+')')#,fontsize=12)
         seqlogo.ax.text(0, 4.8*y,int(self.start), verticalalignment='top', horizontalalignment='left')
         seqlogo.ax.text(self.alignment.modified_sequence_length -1, 4.5*y,self.locus_tag_2+ ' ('+sign_symbol(self.locus_strand_2)+')', horizontalalignment='right')#,fontsize=12)
