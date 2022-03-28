@@ -24,7 +24,7 @@ from . import Alignment_HMM as alignment_hmm
 
 class Alignment_Analysis:
     
-    def __init__(self, analysis_type, alignment, num_states, non_cds_offset, group_id, fitted_parameters, project_dir, Alignment_HMM_Model, pairwise_fitted_parameters, seq_data):
+    def __init__(self, analysis_type, alignment, num_states, non_cds_offset, group_id, fitted_parameters, project_dir, Alignment_HMM_Model, Master_Alignment_HMM_Model, pairwise_fitted_parameters, master_fitted_parameters, seq_data):
         self.analysis_type = analysis_type
         self.group_id = group_id
         self.alignment = alignment 
@@ -55,15 +55,26 @@ class Alignment_Analysis:
         observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment)
         self.hmm_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
         self.hmm_model.calculate_probabilities()
-        
+       
         self.species_names = []
         self.hmm_model_list = []
+        pairwise_state_probabilities = []
         for params in pairwise_fitted_parameters:
             transition_probabilities, mutation_probabilities = Alignment_HMM_Model.alignment_hmm_model_inputs(params[1])
-            observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment, all_species=False, comparison_species = params[0])
+            observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment, 
+                                                                                        all_species=False, comparison_species = params[0])
             self.hmm_model_list.append(hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities))
             self.hmm_model_list[-1].calculate_probabilities()
             self.species_names.append(params[0])
+            pairwise_state_probabilities.append(self.hmm_model_list[-1].state_probabilities)
+        
+        num_master_states = 2
+        master_initial_state_probabilities = [1.0/num_master_states]*num_master_states
+        transition_probabilities, mutation_probabilities = Master_Alignment_HMM_Model.alignment_hmm_model_inputs(master_fitted_parameters)
+        observation_probabilities = Master_Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, pairwise_state_probabilities)
+        self.master_hmm_model = hmm.HMM(master_initial_state_probabilities, transition_probabilities, observation_probabilities)
+        self.master_hmm_model.calculate_probabilities()
+        
             
         self.buffer_end = non_cds_offset - 1
         self.target_end = self.alignment.modified_sequence_length - non_cds_offset
@@ -135,8 +146,8 @@ class Alignment_Analysis:
         else:
             seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag)
         # Start and end regions
-        seqlogo.ax.plot([0, self.buffer_end], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-        seqlogo.ax.plot([self.target_end, self.alignment.modified_sequence_length], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+        seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+        seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
         
         #Old method Insertions
         #for i in self.alignment.master_species_modified_sequence_insertions:
@@ -191,9 +202,14 @@ class Alignment_Analysis:
         for i, state in enumerate(self.hmm_model.viterbi_path):
             if state in [0]:
                 seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
-                
+        
+        for i, state in enumerate(self.master_hmm_model.viterbi_path):
+            if state in [0]:
+                seqlogo.ax.plot([i-0.5, i+0.5], [y-1.1,y-1.1], color='purple', linewidth=8, solid_capstyle='butt')
+                #seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
+        
         for j, pairwise_hmm in enumerate(self.hmm_model_list):
-            seqlogo.ax.text(-text_offset,y-1.5-0.4*(j+1),self.species_name_dict[self.species_names[j]])
+            seqlogo.ax.text(-text_offset,y-1.55-0.4*(j+1),self.species_name_dict[self.species_names[j]])
             for i, state in enumerate(pairwise_hmm.viterbi_path):
                 if state in [0]:
                     seqlogo.ax.plot([i-0.5, i+0.5], [y-1.5-0.4*(j+1),y-1.5-0.4*(j+1)], color='slategrey', linewidth=8, solid_capstyle='butt')
