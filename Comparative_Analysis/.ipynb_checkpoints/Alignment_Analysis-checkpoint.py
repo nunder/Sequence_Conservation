@@ -199,14 +199,14 @@ class Alignment_Analysis:
 
         #seqlogo.ax.plot([self.utr_start, self.utr_end],[y-0.5, y-0.5], color='mediumslateblue', linewidth=10, solid_capstyle='butt')
         sign_symbol = lambda x : '+' if (x > 0) else '-'
-        for i, state in enumerate(self.hmm_model.viterbi_path):
-            if state in [0]:
-                seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
+        #for i, state in enumerate(self.hmm_model.viterbi_path):
+        #    if state in [0]:
+        #        seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
         
         for i, state in enumerate(self.master_hmm_model.viterbi_path):
             if state in [0]:
-                seqlogo.ax.plot([i-0.5, i+0.5], [y-1.1,y-1.1], color='purple', linewidth=8, solid_capstyle='butt')
-                #seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
+                #seqlogo.ax.plot([i-0.5, i+0.5], [y-1.1,y-1.1], color='purple', linewidth=8, solid_capstyle='butt')
+                seqlogo.highlight_position_range(pmin=i-0.5, pmax=i+0.5, color='rosybrown')
         
         for j, pairwise_hmm in enumerate(self.hmm_model_list):
             seqlogo.ax.text(-text_offset,y-1.55-0.4*(j+1),self.species_name_dict[self.species_names[j]])
