@@ -5,6 +5,7 @@ import seaborn as sns
 import shutil
 from tqdm import tqdm
 import numpy as np
+import seaborn as sns
 from Bio import Entrez, SeqIO, AlignIO, pairwise2, Align, Seq, motifs
 from Bio.Seq import Seq
 from Bio.SeqFeature import SeqFeature, FeatureLocation
@@ -167,7 +168,24 @@ def parse_genbank(input_filename, non_cds_offset = 0):
 
 class Ortholog_Grouping:
     def __init__(self, file_loc):
-        orthologs_df = pd.read_csv(file_loc, sep="\t", header=0)
+        orthologs_df = pd.read_csv(file_loc +'/flat.ortholog_groups.tsv', sep="\t", header=0)
+        self.unassigned_genes_dict = {}
+        with open(file_loc +'/not_assigned_genes.ortholog_groups.tsv','r') as input_file:
+            first_seq = 0
+            for l in input_file:
+                m = l.strip('\n')
+                if len(m) == 0:
+                    continue
+                if m[0] == '#':
+                    if first_seq == 1:
+                        self.unassigned_genes_dict[species_name] = temp 
+                    species_name = m[1:-4]
+                    temp = []
+                    first_seq = 1
+                else:
+                    temp.append(m)
+            self.unassigned_genes_dict[species_name] = temp 
+        pd.read_csv(file_loc +'/not_assigned_genes.ortholog_groups.tsv', sep="\t", header=0)
         file_list = list(orthologs_df)
         file_list.remove('group_id')
         self.num_ids = len(file_list)
@@ -199,8 +217,12 @@ class Ortholog_Sequence_Dataset:
         df_list = [item for sublist in parallel_output for item in sublist]
         self.sequence_data = pd.concat(df_list)  
         self.master_species = master_species
-        #self.sequence_data.to_csv(output_dir + '/Ortholog_Master_Data/'+'sequence_master_data.csv')
-    
+        self.unassigned_genes_dict = ortholog_grouping.unassigned_genes_dict
+        organism_names = self.sequence_data[['species','name']].drop_duplicates().reset_index(drop=True)
+        self.organism_dict = {}
+        for i, r in organism_names.iterrows():
+            self.organism_dict[r['species']] = r['name'].split(' ')[0][0] + '.'+r['name'].split(' ')[1]
+        
     def master_species_info(self, group_id, fieldname):
         temp_df = self.sequence_data[self.sequence_data['group_id'] == group_id]
         return temp_df[temp_df['species'] == self.master_species].iloc[0][fieldname]
@@ -219,9 +241,38 @@ class Ortholog_Sequence_Dataset:
                 orthologs_and_cds_info = orthologs_for_id.merge(cds_data, how = 'left', left_on = 'protein_id', right_on = 'protein_id')
                 orthologs_and_cds_info.drop_duplicates(subset = ['protein_id'], keep=False, inplace=True)   # Remove instances where same protein is coded in multiple locuses
             else:
-                orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.all_copy_orthologs_df['species'] == id]
+                orthologs_for_id = ortholog_grouping.all_copy_orthologs_df[ortholog_grouping.all_copy_orthologs_df['species'] == id]
                 orthologs_and_cds_info = orthologs_for_id.merge(cds_data, how = 'left', left_on = 'protein_id', right_on = 'protein_id')
+                
             orthologs_and_cds_info = orthologs_and_cds_info[orthologs_and_cds_info['name']==orthologs_and_cds_info['name']]    #Remove proteins which can't be matched back
             df_list.append(orthologs_and_cds_info)
         return df_list
 
+    def generate_synteny_plot(self):
+        a = self.sequence_data
+        b = self.sequence_data[self.sequence_data['species'] == self.master_species]
+        c = a.merge(b, how = 'inner', left_on = 'group_id', right_on = 'group_id')[['name_x','name_y','strand_x','strand_y','group_id','start_x','start_y']]
+        g = sns.FacetGrid(c, col='name_x', col_wrap=4)
+        g.map_dataframe(sns.scatterplot, x='start_x',y='start_y',s=2, color=".2",legend=True)  #marker='+',
+        g.set_titles(row_template = '{row_name}', col_template = '{col_name}')
+        #g.savefig(output_loc + "Ortholog_Syteny_Graph.pdf", dpi=300)
+        
+    def generate_ortholog_count_plot(self):
+        a = self.sequence_data
+        master_groups = a[a['species'] == self.master_species]['group_id'].unique().tolist()
+        summary = a[a['group_id'].isin(master_groups)].groupby('group_id',as_index=False)['species'].count()
+        sns.histplot(data=summary, x='species', bins=80)
+    
+    def generate_master_count_plot(self):
+        a = self.sequence_data
+        master_groups = a[a['species'] == self.master_species]['group_id'].unique().tolist()
+        temp = a[a['group_id'].isin(master_groups)]
+        summary = temp[temp['species'] == self.master_species].groupby('group_id',as_index=False)['species'].count()
+        sns.histplot(data=summary, x='species', bins=80)
+    
+    def generate_unassigned_gene_count_plot(self):
+        temp = []
+        for k, v in self.unassigned_genes_dict.items():
+            temp.append([self.organism_dict[k], len(v)])
+            unassigned_gene_counts = pd.DataFrame(temp, columns=['species','gene_count'])
+            sns.barplot(y='species', x='gene_count', data=unassigned_gene_counts)
