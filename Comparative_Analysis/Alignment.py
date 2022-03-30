@@ -91,6 +91,13 @@ def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
     else:
         return cumulative_relent, symbol_entropies
 
+def reverse_complement(seq_string):
+    complement_dict = {'A':'T','C':'G','G':'C','T':'A','N':'N'}
+    temp = []
+    for char in reversed(seq_string):
+        temp.append(complement_dict[char])
+    return ''.join(temp)
+    
     
 class Alignment:
     def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): 
@@ -182,12 +189,15 @@ class Alignment:
                 ans = i 
                 break
         return ans   
-
-    def find_pattern(self, search_str_list, start_pos, end_pos, min_entropy, max_mismatches, in_frame = False, frame_start = 0, method = 'count'):
+    
+   
+    def find_pattern(self, search_str_list, start_pos, end_pos, min_entropy, max_mismatches, in_frame = False, frame_start = 0, method = 'count', rev_complement = False):
         match_starts = []
         if method == 'entropy':
             self.calculate_entropies()
             for search_str in search_str_list:
+                if rev_complement == True:
+                    search_str = reverse_complement(search_str)
                 search_len = len(search_str)
                 search_positions = []
                 for i in range(search_len):
@@ -224,6 +234,8 @@ class Alignment:
                     for j in range(self.num_sequences):
                         matched = 0
                         for search_str in search_str_list:
+                            if rev_complement == True:
+                                search_str = reverse_complement(search_str)
                             test_seq = self.modified_sequence_list[j][i:i+search_len]
                             if test_seq == search_str:
                                 matched = 1

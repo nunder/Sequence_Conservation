@@ -115,6 +115,8 @@ class Alignment_Analysis:
     def display_analysis(self):
         
         plot_length = self.end - self.start
+        y = -1        
+        text_offset = 0.06 * plot_length
         counts_df = lm.alignment_to_matrix(sequences = self.alignment.modified_sequence_list, to_type = 'counts', characters_to_ignore = '-', pseudocount=0)
         background_probs = [0.25, 0.25, 0.25, 0.25]
         for i, r in counts_df.iterrows():
@@ -130,84 +132,83 @@ class Alignment_Analysis:
                     temp_relent.append((ct /self.alignment.num_sequences) * math.log((ct /self.alignment.num_sequences)/background_probs[k],2))
             for k in range(4):
                 r.iloc[k] = temp_relent[k]
-
-        y = -1        
-        text_offset = 0.06 * plot_length
-        
+             
         seqlogo = lm.Logo(counts_df, figsize = [30,6])
         seqlogo.style_spines(visible=False)
         seqlogo.style_spines(spines=['left'], visible=True, bounds=[0, 2])
         seqlogo.ax.set_xticks([])
         seqlogo.ax.set_yticks([0,2])
-        seqlogo.ax.set_ylim([-7, 2])
+        seqlogo.ax.set_ylim([-10.5, 2])
         seqlogo.ax.axhline(y, color = 'k', linewidth = 1)
+       
+        #Title
         if self.analysis_type == 'Upstream':
             seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag_2)
         else:
             seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag)
+        
+        #Text labels 
+        sign_symbol = lambda x : '+' if (x > 0) else '-'
+        seqlogo.ax.text(-text_offset,y,self.locus_tag + ' ('+sign_symbol(self.locus_strand)+')')
+        seqlogo.ax.text(-text_offset,1.2*y,int(self.start), verticalalignment='top', horizontalalignment='left')
+        seqlogo.ax.text(self.alignment.modified_sequence_length, y,self.locus_tag_2+ ' ('+sign_symbol(self.locus_strand_2)+')', horizontalalignment='left')
+        seqlogo.ax.text(self.alignment.modified_sequence_length, 1.2*y,int(self.end), verticalalignment='top', horizontalalignment='left')
+        
         # Start and end regions
         seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
         seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
         
-        #Old method Insertions
-        #for i in self.alignment.master_species_modified_sequence_insertions:
-        #    seqlogo.ax.plot([i[0], i[0]+1], [y-2,y-2], color='red', linewidth=3*i[1], solid_capstyle='butt')
-        
+              
         #Pribnow
         for i in self.alignment.find_pattern(['TANNNT'] , 0 , self.alignment.modified_sequence_length,1.3,0, method = 'entropy'):
             seqlogo.ax.plot([i, i+5], [y,y], color='orange', linewidth=5, solid_capstyle='butt')
         for i in self.alignment.find_pattern(['ANNNTA'] , 0 , self.alignment.modified_sequence_length,1.3,0, method = 'entropy'):
             seqlogo.ax.plot([i, i+5], [y-0.5,y-0.5], color='orange', linewidth=5, solid_capstyle='butt')
-        
-        
-        seqlogo.ax.plot([self.target_end, self.target_end], [y,y], color='blue', linewidth=5, solid_capstyle='butt')
-        seqlogo.ax.plot([self.buffer_end, self.buffer_end], [y,y], color='blue', linewidth=5, solid_capstyle='butt')
-        
+    
+      # Stop, Start codons in frame
         tolerance = 4
-        # Stop, Start codons in frame
-        if self.analysis_type == 'Upstream': 
-            for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.target_end, method = 'count'):
-                seqlogo.ax.plot([i-0.5, i+2.5], [y,y], color='green', linewidth=5, solid_capstyle='butt')
-            for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.target_end, method = 'count'):
-                seqlogo.ax.plot([i-0.5, i+2.5], [y,y], color='red', linewidth=5, solid_capstyle='butt')
-                
-            if self.locus_strand == self.locus_strand_2:
-                for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.buffer_end-2, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='green', linewidth=5, solid_capstyle='butt')
-                for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.buffer_end-2, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='red', linewidth=5, solid_capstyle='butt')
-            else:
-                for i in self.alignment.find_pattern(['CAT','CAC','CAA','CAG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.buffer_end-2, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='green', linewidth=5, solid_capstyle='butt')
-                for i in self.alignment.find_pattern(['CTA','TCA','TTA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.buffer_end-2, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='red', linewidth=5, solid_capstyle='butt')
+        f_sense_1 = False
+        if self.locus_strand == self.locus_strand_2:
+            f_sense_2 = False
+            arrow_direction_2 = 1
         else:
-            for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.buffer_end-2, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y,y], color='green', linewidth=5, solid_capstyle='butt')
-            for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.buffer_end-2, method = 'count'):
-                seqlogo.ax.plot([i-0.5, i+2.5], [y,y], color='red', linewidth=5, solid_capstyle='butt')
-            if self.locus_strand == self.locus_strand_2:
-                for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.target_end, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='green', linewidth=5, solid_capstyle='butt')
-                for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.target_end, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='red', linewidth=5, solid_capstyle='butt')
-            else:
-                for i in self.alignment.find_pattern(['CAT','CAC','CAA','CAG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.target_end, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='green', linewidth=5, solid_capstyle='butt')
-                for i in self.alignment.find_pattern(['CTA','TCA','TTA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = self.target_end, method = 'count'):
-                    seqlogo.ax.plot([i-0.5, i+2.5], [y-0.5,y-0.5], color='red', linewidth=5, solid_capstyle='butt')
-
-        #seqlogo.ax.plot([self.utr_start, self.utr_end],[y-0.5, y-0.5], color='mediumslateblue', linewidth=10, solid_capstyle='butt')
-        sign_symbol = lambda x : '+' if (x > 0) else '-'
-        #for i, state in enumerate(self.hmm_model.viterbi_path):
-        #    if state in [0]:
-        #        seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
+            f_sense_2 = True
+            arrow_direction_2 = -1
+        if self.analysis_type == 'Upstream': 
+            f_start_1 = self.target_end
+            f_start_2 = self.buffer_end - 2
+        else:
+            f_start_1 = self.buffer_end - 2
+            f_start_2 = self.target_end
+   
+            
+        for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i-0.5, y, 3, 0, color='green', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
+        for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i-0.5, y, 3, 0, color='red', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
+        for i in self.alignment.find_pattern(['GGAG','GAGG','AGGA'],0,self.alignment.modified_sequence_length,1,tolerance, method = 'count', rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i-0.5, y, 3, 0, color='pink', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
+        for i in self.alignment.find_pattern(['TANNNT'] , 0 , self.alignment.modified_sequence_length, 1.3,0, method = 'entropy', rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i-0.5, y, 6, 0, color='orange', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
+            
+        for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_2, method = 'count', rev_complement = f_sense_2):
+            seqlogo.ax.arrow(i+1-1.5*arrow_direction_2, y-0.5, 3*arrow_direction_2, 0, color='green', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+        for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_2, method = 'count', rev_complement = f_sense_2):
+            seqlogo.ax.arrow(i+1-1.5*arrow_direction_2, y-0.5, 3*arrow_direction_2, 0, color='red', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+        for i in self.alignment.find_pattern(['GGAG','GAGG','AGGA'],0,self.alignment.modified_sequence_length,1,tolerance,method = 'count', rev_complement = f_sense_2):
+            seqlogo.ax.arrow(i+1-1.5*arrow_direction_2, y-0.5, 3*arrow_direction_2, 0, color='pink', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+        for i in self.alignment.find_pattern(['TANNNT'] , 0 , self.alignment.modified_sequence_length, 1.3,0, method = 'entropy', rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i+2.75-3.25*arrow_direction_2, y-0.5, 6*arrow_direction_2, 0, color='orange', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+               
+    
+        
         
         for i, state in enumerate(self.master_hmm_model.viterbi_path):
             if state in [0]:
                 #seqlogo.ax.plot([i-0.5, i+0.5], [y-1.1,y-1.1], color='purple', linewidth=8, solid_capstyle='butt')
                 seqlogo.highlight_position_range(pmin=i-0.5, pmax=i+0.5, color='rosybrown')
         
+        last_pos = 0
         for j, pairwise_hmm in enumerate(self.hmm_model_list):
             seqlogo.ax.text(-text_offset,y-1.55-0.4*(j+1),self.species_name_dict[self.species_names[j]])
             for i, state in enumerate(pairwise_hmm.viterbi_path):
@@ -215,11 +216,38 @@ class Alignment_Analysis:
                     seqlogo.ax.plot([i-0.5, i+0.5], [y-1.5-0.4*(j+1),y-1.5-0.4*(j+1)], color='slategrey', linewidth=8, solid_capstyle='butt')
             for k in self.insertion_locations[self.species_names[j]]:
                 seqlogo.ax.plot([k-0.5, k+0.5], [y-1.5-0.4*(j+1),y-1.5-0.4*(j+1)], color='deeppink', linewidth=3, solid_capstyle='butt')
-                
-        seqlogo.ax.text(-text_offset,y,self.locus_tag + ' ('+sign_symbol(self.locus_strand)+')')
-        seqlogo.ax.text(-text_offset,1.2*y,int(self.start), verticalalignment='top', horizontalalignment='left')
-        seqlogo.ax.text(self.alignment.modified_sequence_length, y,self.locus_tag_2+ ' ('+sign_symbol(self.locus_strand_2)+')', horizontalalignment='left')#,fontsize=12)
-        seqlogo.ax.text(self.alignment.modified_sequence_length, 1.2*y,int(self.end), verticalalignment='top', horizontalalignment='left')
+        last_pos = y-1.5-0.4*(j+1)
+        last_pos = last_pos - 0.4
+        
+          # All six reading frames at foot
+        rf = 0
+        for reverse_complement in [False,True]:
+            if reverse_complement == False:
+                dx = 3
+                start = -0.5
+            else:
+                dx = -3
+                start = 2.5
+            for reading_frame in range(3):
+                rf += 1
+                last_pos = last_pos - 0.4
+                seqlogo.ax.text(-text_offset,last_pos-0.05,'Reading Frame '+str(rf))
+                for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, 
+                                                     frame_start = self.target_end + reading_frame, method = 'count', rev_complement = reverse_complement):
+                     seqlogo.ax.arrow(i+start, last_pos, dx, 0, color='green', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+                for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True,
+                                                     frame_start = self.target_end + reading_frame, method = 'count', rev_complement = reverse_complement):
+                    seqlogo.ax.arrow(i+start, last_pos, dx, 0, color='red', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+        
+      
         seqlogo;
         
-        sign_symbol = lambda x : '+' if (x > 0) else '-'
+        #Old method Insertions
+        #for i in self.alignment.master_species_modified_sequence_insertions:
+        #    seqlogo.ax.plot([i[0], i[0]+1], [y-2,y-2], color='red', linewidth=3*i[1], solid_capstyle='butt')
+        #seqlogo.ax.plot([self.utr_start, self.utr_end],[y-0.5, y-0.5], color='mediumslateblue', linewidth=10, solid_capstyle='butt')
+        #for i, state in enumerate(self.hmm_model.viterbi_path):
+        #    if state in [0]:
+        #        seqlogo.highlight_position_range(pmin=i, pmax=i, color='rosybrown')
+        # seqlogo.ax.plot([self.target_end, self.target_end], [y,y], color='blue', linewidth=5, solid_capstyle='butt')
+        # seqlogo.ax.plot([self.buffer_end, self.buffer_end], [y,y], color='blue', linewidth=5, solid_capstyle='butt')
