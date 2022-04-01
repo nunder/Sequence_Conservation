@@ -122,6 +122,7 @@ class Alignment_Analysis:
                 r.iloc[k] = temp_relent[k]
         
     def display_analysis(self, co_ordinate_start = -999, co_ordinate_end = -999):
+        
         if co_ordinate_end < 0:
             plot_start = -0.5
             plot_end = abs(self.end - self.start) - 0.5
@@ -142,7 +143,7 @@ class Alignment_Analysis:
 
         y = -1        
         text_offset = 0.06 * plot_length
-                     
+
         seqlogo = lm.Logo(self.counts_df, figsize = [30,6])
         seqlogo.style_spines(visible=False)
         seqlogo.style_spines(spines=['left'], visible=True, bounds=[0, 2])
@@ -151,27 +152,27 @@ class Alignment_Analysis:
         seqlogo.ax.set_ylim([-10.5, 2])
         seqlogo.ax.set_xlim([plot_start, plot_end])
         seqlogo.ax.axhline(y, color = 'k', linewidth = 1)
-       
+
         #Title
         if self.analysis_type == 'Upstream':
             seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag_2)
         else:
             seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag)
-        
+
         #Text labels 
         sign_symbol = lambda x : '+' if (x > 0) else '-'
         seqlogo.ax.text(plot_start-text_offset,y,str(self.locus_tag) + ' ('+sign_symbol(self.locus_strand)+')')
         seqlogo.ax.text(plot_start-text_offset,1.2*y,print_coordinates_start, verticalalignment='top', horizontalalignment='left')
         seqlogo.ax.text(plot_end + 1, y,str(self.locus_tag_2)+ ' ('+sign_symbol(self.locus_strand_2)+')', horizontalalignment='left')
         seqlogo.ax.text(plot_end + 1, 1.2*y,print_coordinates_end, verticalalignment='top', horizontalalignment='left')
-      
-        
+
+
         # Start and end regions
         seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
         seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-        
-             
-          
+
+
+
       # Stop, Start codons in frame
         tolerance = 3
         f_sense_1 = False
@@ -187,8 +188,8 @@ class Alignment_Analysis:
         else:
             f_start_1 = self.buffer_end - 2
             f_start_2 = self.target_end
-   
-            
+
+
         for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
             seqlogo.ax.arrow(i-0.5, y, 3, 0, color='green', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
         for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
@@ -197,7 +198,7 @@ class Alignment_Analysis:
             seqlogo.ax.arrow(i-0.5, y, 4, 0, color='pink', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
         for i in self.alignment.find_pattern(['TANNNT'] , 0 , self.alignment.modified_sequence_length, 1.3,0, method = 'entropy', rev_complement = f_sense_1):
             seqlogo.ax.arrow(i-0.5, y, 6, 0, color='orange', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
-            
+
         for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_2, method = 'count', rev_complement = f_sense_2):
             seqlogo.ax.arrow(i+1-1.5*arrow_direction_2, y-0.5, 3*arrow_direction_2, 0, color='green', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
         for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_2, method = 'count', rev_complement = f_sense_2):
@@ -206,13 +207,13 @@ class Alignment_Analysis:
             seqlogo.ax.arrow(i+1.5-2*arrow_direction_2, y-0.5, 4*arrow_direction_2, 0, color='pink', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
         for i in self.alignment.find_pattern(['TANNNT'] , 0 , self.alignment.modified_sequence_length, 1.3,0, method = 'entropy', rev_complement = f_sense_1):
             seqlogo.ax.arrow(i+2.75-3.25*arrow_direction_2, y-0.5, 6*arrow_direction_2, 0, color='orange', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
-               
-           
-        
+
+
+
         for i, state in enumerate(self.master_hmm_model.viterbi_path):
             if state in [0]:
                 seqlogo.highlight_position_range(pmin=i-0.5, pmax=i+0.5, color='rosybrown')
-        
+
         last_pos = 0
         for j, pairwise_hmm in enumerate(self.hmm_model_list):
             seqlogo.ax.text(plot_start-text_offset,y-1.55-0.4*(j+1),self.species_name_dict[self.species_names[j]])
@@ -223,7 +224,7 @@ class Alignment_Analysis:
                 seqlogo.ax.plot([k-0.5, k+0.5], [y-1.5-0.4*(j+1),y-1.5-0.4*(j+1)], color='deeppink', linewidth=3, solid_capstyle='butt')
         last_pos = y-1.5-0.4*(j+1)
         last_pos = last_pos - 0.4
-        
+
           # All six reading frames at foot
         rf = 0
         for reverse_complement in [False,True]:
@@ -243,7 +244,7 @@ class Alignment_Analysis:
                 for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True,
                                                      frame_start = self.target_end + reading_frame, method = 'count', rev_complement = reverse_complement):
                     seqlogo.ax.arrow(i+start, last_pos, dx, 0, color='red', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
-        
-      
+
+
         seqlogo;
         
