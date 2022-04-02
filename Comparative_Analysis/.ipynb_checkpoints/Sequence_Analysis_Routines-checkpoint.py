@@ -18,6 +18,7 @@ import math
 from scipy import linalg
 import scipy.stats as ss
 from . import Utilities as util
+import copy
 
 def generate_protein_file(input_fileloc, output_fileloc):
     protein_list = []
@@ -32,7 +33,7 @@ def generate_protein_file(input_fileloc, output_fileloc):
                     f.write('>' + a.get('protein_id')[0] + '\n' + a.get('translation')[0] + '\n')
 
 def run_sonic_paranoid(protein_file_location, output_location, run_name):
-    subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + wslname(protein_file_location) +' -o ' + wslname(output_location) + ' -p ' + run_name + ' -t 8 -ot' , shell=True)
+    subprocess.run('wsl cd ~; source sonicparanoid/bin/activate; sonicparanoid -i ' + util.wslname(protein_file_location) +' -o ' + util.wslname(output_location) + ' -p ' + run_name + ' -t 8 -ot' , shell=True)
 
 
 def parse_genbank(input_filename, non_cds_offset = 0):
@@ -217,7 +218,7 @@ class Ortholog_Sequence_Dataset:
         df_list = [item for sublist in parallel_output for item in sublist]
         self.sequence_data = pd.concat(df_list)  
         self.master_species = master_species
-        self.unassigned_genes_dict = ortholog_grouping.unassigned_genes_dict
+        self.unassigned_genes_dict = copy.deepcopy(ortholog_grouping.unassigned_genes_dict)
         organism_names = self.sequence_data[['species','name']].drop_duplicates().reset_index(drop=True)
         self.organism_dict = {}
         for i, r in organism_names.iterrows():
@@ -229,6 +230,7 @@ class Ortholog_Sequence_Dataset:
 
     def species_info(self):
         return self.sequence_data.drop_duplicates(['name','species'])[['name','species']]
+
     
     def parallel_populate(self, num_subsets, subset_num, ortholog_grouping, genome_datasets_dir, genome_ids, non_cds_offset, master_species, single_copy): 
         genomes = util.chunk_list(genome_ids, num_subsets, subset_num)
@@ -275,4 +277,4 @@ class Ortholog_Sequence_Dataset:
         for k, v in self.unassigned_genes_dict.items():
             temp.append([self.organism_dict[k], len(v)])
             unassigned_gene_counts = pd.DataFrame(temp, columns=['species','gene_count'])
-            sns.barplot(x='species', y='gene_count', data=unassigned_gene_count)
+            sns.barplot(y='species', x='gene_count', data=unassigned_gene_counts)

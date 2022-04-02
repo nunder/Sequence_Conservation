@@ -16,6 +16,7 @@ from statistics import mean, stdev
 import math
 from scipy import linalg
 import scipy.stats as ss
+import copy
 
 ###    File routines ###
 
@@ -67,6 +68,37 @@ def chunk_list(id_list, num_subsets, subset_num):
     else:
         ids = id_list[len_ids - (num_subsets - (subset_num -1))*subset_size : len_ids - (num_subsets - subset_num)*subset_size]
     return ids
+
+def repeat_fn(num_cores, inputs):
+    def decorate(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            def g(id_list, num_subsets, subset_number):
+                id_subset = chunk_list(id_list, num_subsets, subset_number)
+                temp = []
+                for i in id_subset:
+                    args = (i,)
+                    temp.append(func(*args, **kwargs))
+                return temp
+            core_numbers = list(range(1, num_cores+1))
+            parallel_output = Parallel(n_jobs=-1)(delayed(g)(inputs, num_cores, core_number) for core_number in core_numbers)
+            return [item for sublist in parallel_output for item in sublist]
+        return wrapper
+    return decorate   
+
+def parallelize(func, group_ids, other_args, num_cores):
+    def g(id_list, num_subsets, subset_number):
+            id_subset = chunk_list(id_list, num_subsets, subset_number)
+            arg_list = copy.deepcopy(other_args)
+            arg_list.insert(0, 0)
+            temp = []
+            for i in id_subset:
+                arg_list[0] = i
+                temp.append(func(*arg_list))
+            return temp
+    core_numbers = list(range(1, num_cores+1))
+    parallel_output = Parallel(n_jobs=-1)(delayed(g)(group_ids, num_cores, core_number) for core_number in core_numbers)
+    return [item for sublist in parallel_output for item in sublist]
 
 def concatenate_fasta(directory, file_list, output_file):
     sequence_dict = {}

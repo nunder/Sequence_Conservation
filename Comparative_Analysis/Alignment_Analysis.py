@@ -21,13 +21,14 @@ from . import Utilities as util
 from . import HMM as hmm
 from . import Sequence_Analysis_Routines as sar
 from . import Alignment_HMM as alignment_hmm
+import copy
 
 class Alignment_Analysis:
     
     def __init__(self, analysis_type, alignment, num_states, non_cds_offset, group_id, fitted_parameters, project_dir, Alignment_HMM_Model, Master_Alignment_HMM_Model, pairwise_fitted_parameters, master_fitted_parameters, seq_data):
         self.analysis_type = analysis_type
         self.group_id = group_id
-        self.alignment = alignment 
+        self.alignment = copy.deepcopy(alignment) 
         self.alignment.modify_sequence(1,False,False)
         self.alignment.calculate_entropies(mvave_len = 10)
         

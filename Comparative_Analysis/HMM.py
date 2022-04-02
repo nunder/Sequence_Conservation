@@ -17,14 +17,15 @@ import math
 from scipy import linalg
 import scipy.stats as ss
 from . import Utilities as util
+import copy
     
 class HMM:
     def __init__(self, initial_state_probabilities, transition_probabilities, observation_probabilities, termination = False):
-        self.initial_state_probabilities = initial_state_probabilities
-        self.transition_probabilities = transition_probabilities
-        self.observation_probabilities = observation_probabilities
+        self.initial_state_probabilities = copy.deepcopy(initial_state_probabilities)
+        self.transition_probabilities = copy.deepcopy(transition_probabilities)
+        self.observation_probabilities = copy.deepcopy(observation_probabilities)
         self.num_states = len(initial_state_probabilities)
-        self.observation_length = observation_probabilities.shape[1]
+        self.observation_length = self.observation_probabilities.shape[1]
         self.viterbi_path = np.zeros(self.observation_length, dtype='int16')
         self.viterbi_probability = 0
         self.forward_probabilities = []

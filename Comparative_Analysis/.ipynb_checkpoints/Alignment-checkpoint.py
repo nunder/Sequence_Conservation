@@ -17,6 +17,7 @@ import math
 from scipy import linalg
 import scipy.stats as ss
 from . import Utilities as util
+import copy
 
 def align_and_build(id_list, num_subsets, subset_num, source_data, length_field, seq_field, out_loc, min_species): 
     muscle_exe = 'C:/Users/nicho/Muscle/muscle3.8.31_i86win32.exe'
@@ -148,7 +149,7 @@ class Alignment:
         for i in range(self.num_sequences):
             self.modified_sequence_list[i] = ''.join(self.modified_sequence_list[i])
         self.modified_sequence_length = len(self.modified_sequence_list[0])
-        self.master_species_modified_sequence = self.modified_sequence_list[self.master_species_index]
+        self.master_species_modified_sequence = copy.deepcopy(self.modified_sequence_list[self.master_species_index])
         self.master_species_modified_sequence_insertions = []
         other_sequences = []
         for i in range(self.num_sequences):
