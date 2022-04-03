@@ -132,7 +132,7 @@ def concatenate_fasta(directory, file_list, output_file):
                 outstring.append(sequence_dict[(filename, name)])
             outfile.write(''.join(outstring) + "\n")
     
-def read_fasta_to_arrays(filename):
+def read_fasta_to_array(filename, species_order = []):
     with open(filename,'r') as ofile: 
             sequence_names = []
             sequence_list = []
@@ -148,5 +148,17 @@ def read_fasta_to_arrays(filename):
                     first_seq = 1
                     outstr += m
             sequence_list.append(outstr)
-    num_sequences = len(sequence_names) 
-    return [sequence_names, sequence_list]
+            if len(species_order) == 0:
+                pass
+            else:
+                ordered_sequence_list = []
+                ordered_sequence_names = []
+                for seq_name in species_order:
+                    if seq_name in sequence_names:
+                        pos = sequence_names.index(seq_name)
+                        ordered_sequence_list.append(sequence_list[pos])
+                        ordered_sequence_names.append(sequence_names[pos])
+    if len(species_order) == 0:
+        return [sequence_names, sequence_list]
+    else:
+        return [ordered_sequence_names, ordered_sequence_list]

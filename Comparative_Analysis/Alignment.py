@@ -101,8 +101,8 @@ def reverse_complement(seq_string):
     
     
 class Alignment:
-    def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-'): 
-        temp = util.read_fasta_to_arrays(fileloc)
+    def __init__(self, fileloc, master_species, alphabet_name, insert_symbol = '-', species_order = []): 
+        temp = util.read_fasta_to_array(fileloc, species_order)
         self.alphabet_name = alphabet_name
         self.non_insert_symbols = []
         if self.alphabet_name == 'NT':

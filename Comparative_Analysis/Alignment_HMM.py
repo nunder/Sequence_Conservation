@@ -26,7 +26,7 @@ from . import Alignment as align
     
 class Alignment_HMM:
     
-    def __init__(self, num_symbols, num_states, alignment_dir, master_species_id):
+    def __init__(self, num_symbols, num_states, alignment_dir, master_species_id, species_order = []):
         self.initial_state_probabilities = [1.0/num_states]*num_states
         self.num_symbols = num_symbols 
         self.num_states = num_states
@@ -34,7 +34,7 @@ class Alignment_HMM:
         self.alignment_ids = [int(i.split('.')[0]) for i in alignment_ids]
         self.alignment_dict = {}
         for group_id in tqdm(self.alignment_ids):
-            alignment = align.Alignment(alignment_dir + '/' + str(group_id) + '.fasta', master_species_id, 'NT')
+            alignment = align.Alignment(alignment_dir + '/' + str(group_id) + '.fasta', master_species_id, 'NT', species_order)
             alignment.modify_sequence(1, False, False)
             self.alignment_dict[group_id] = alignment
         
