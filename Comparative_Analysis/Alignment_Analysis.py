@@ -21,21 +21,23 @@ from . import Utilities as util
 from . import HMM as hmm
 from . import Sequence_Analysis_Routines as sar
 from . import Alignment_HMM as alignment_hmm
+from . import Master_Alignment_HMM as master_alignment_hmm
+from . import Multi_Species_Master_Alignment_HMM as multi_species_master_alignment_hmm
+from . import Arneson_Ernst_HMM as ae_hmm
 import copy
 
 class Alignment_Analysis:
     
-    def __init__(self, analysis_type, alignment, num_states, non_cds_offset, group_id, fitted_parameters, project_dir, Alignment_HMM_Model, Master_Alignment_HMM_Model, pairwise_fitted_parameters, master_fitted_parameters, seq_data):
+    def __init__(self, analysis_type, alignment, seq_data, non_cds_offset, group_id, individual_model_num_states, individual_model_parameters, overall_model, 
+                 overall_model_num_states, overall_model_parameters, non_cds_output_dir, tb_species, genome_ids, pairwise_observation_probabilities, alignment_hmm_model, model):
         self.analysis_type = analysis_type
         self.group_id = group_id
         self.alignment = copy.deepcopy(alignment) 
         self.alignment.modify_sequence(1,False,False)
         self.alignment.calculate_entropies(mvave_len = 10)
-        
         self.species_name_dict = {}
         for i, r in seq_data.species_info().iterrows():
             self.species_name_dict[r['species']] = 'M.'+ (r['name'].split()[1]) 
-        
         self.insertion_locations = {}
         for i, seq in enumerate(self.alignment.modified_sequence_list):
             if i == self.alignment.master_species_index:
@@ -46,33 +48,38 @@ class Alignment_Analysis:
                     temp.append(j)
             self.insertion_locations[self.alignment.sequence_names[i]] = temp
        
-       
-        initial_state_probabilities = [1.0/num_states]*num_states
-        transition_probabilities, mutation_probabilities = Alignment_HMM_Model.alignment_hmm_model_inputs(fitted_parameters)
-        observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment)
-        self.hmm_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
-        self.hmm_model.calculate_probabilities()
-       
+        # Individual HMMs -one per species
+        initial_state_probabilities = [1.0/individual_model_num_states]*individual_model_num_states
         self.species_names = []
-        self.hmm_model_list = []
+        self.individual_model_list = []
         pairwise_state_probabilities = []
-        for params in pairwise_fitted_parameters:
-            transition_probabilities, mutation_probabilities = Alignment_HMM_Model.alignment_hmm_model_inputs(params[1])
-            observation_probabilities = Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, alignment, 
+        for params in individual_model_parameters:
+            transition_probabilities, mutation_probabilities = alignment_hmm_model.alignment_hmm_model_inputs(params[1])
+            observation_probabilities = alignment_hmm_model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, self.alignment, 
                                                                                         all_species=False, comparison_species = params[0])
-            self.hmm_model_list.append(hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities))
-            self.hmm_model_list[-1].calculate_probabilities()
+            self.individual_model_list.append(hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities))
+            self.individual_model_list[-1].calculate_probabilities()
             self.species_names.append(params[0])
-            pairwise_state_probabilities.append(self.hmm_model_list[-1].state_probabilities)
+            pairwise_state_probabilities.append(self.individual_model_list[-1].state_probabilities)
         
-        num_master_states = 2
-        master_initial_state_probabilities = [1.0/num_master_states]*num_master_states
-        transition_probabilities, mutation_probabilities = Master_Alignment_HMM_Model.alignment_hmm_model_inputs(master_fitted_parameters)
-        observation_probabilities = Master_Alignment_HMM_Model.calculate_observation_probs(mutation_probabilities, pairwise_state_probabilities)
-        self.master_hmm_model = hmm.HMM(master_initial_state_probabilities, transition_probabilities, observation_probabilities)
-        self.master_hmm_model.calculate_probabilities()
+        # Overall HMM
+        initial_state_probabilities = [1.0/overall_model_num_states]*overall_model_num_states
+        if overall_model == 'Simple':
+            transition_probabilities, mutation_probabilities = model.alignment_hmm_model_inputs(overall_model_parameters)
+            observation_probabilities = model.calculate_observation_probs(mutation_probabilities, pairwise_state_probabilities)
+        elif overall_model == 'Multi_Species':
+            transition_probabilities, mutation_probabilities = model.alignment_hmm_model_inputs(overall_model_parameters)
+            observation_probabilities = model.calculate_observation_probs(mutation_probabilities, pairwise_state_probabilities)
+        elif overall_model == 'AE':
+            transition_probabilities, mutation_probabilities = model.alignment_hmm_model_inputs(overall_model_parameters)
+            observation_probabilities = model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, self.alignment)
+        else:
+            pass
+        self.overall_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
+        self.overall_model.calculate_probabilities()
         
-            
+        
+        #Sequence information for display
         self.buffer_end = non_cds_offset - 1
         self.target_end = self.alignment.modified_sequence_length - non_cds_offset
         if analysis_type == 'Downstream':
@@ -211,12 +218,12 @@ class Alignment_Analysis:
 
 
 
-        for i, state in enumerate(self.master_hmm_model.viterbi_path):
+        for i, state in enumerate(self.overall_model.viterbi_path):
             if state in [0]:
                 seqlogo.highlight_position_range(pmin=i-0.5, pmax=i+0.5, color='rosybrown')
 
         last_pos = 0
-        for j, pairwise_hmm in enumerate(self.hmm_model_list):
+        for j, pairwise_hmm in enumerate(self.individual_model_list):
             seqlogo.ax.text(plot_start-text_offset,y-1.55-0.4*(j+1),self.species_name_dict[self.species_names[j]])
             for i, state in enumerate(pairwise_hmm.viterbi_path):
                 if state in [0]:
