@@ -51,16 +51,18 @@ class Alignment_Analysis:
         # Individual HMMs -one per species
         initial_state_probabilities = [1.0/individual_model_num_states]*individual_model_num_states
         self.species_names = []
-        self.individual_model_list = []
+        individual_model_list = []
+        self.individual_model_viterbi_path = []
         pairwise_state_probabilities = []
         for params in individual_model_parameters:
             transition_probabilities, mutation_probabilities = alignment_hmm_model.alignment_hmm_model_inputs(params[1])
             observation_probabilities = alignment_hmm_model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, self.alignment, 
                                                                                         all_species=False, comparison_species = params[0])
-            self.individual_model_list.append(hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities))
-            self.individual_model_list[-1].calculate_probabilities()
+            individual_model_list.append(hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities))
+            individual_model_list[-1].calculate_probabilities()
+            self.individual_model_viterbi_path.append(individual_model_list[-1].viterbi_path)
             self.species_names.append(params[0])
-            pairwise_state_probabilities.append(self.individual_model_list[-1].state_probabilities)
+            pairwise_state_probabilities.append(individual_model_list[-1].state_probabilities)
         
         # Overall HMM
         initial_state_probabilities = [1.0/overall_model_num_states]*overall_model_num_states
@@ -75,9 +77,9 @@ class Alignment_Analysis:
             observation_probabilities = model.calculate_observation_probs(mutation_probabilities, self.alignment.modified_sequence_list, self.alignment)
         else:
             pass
-        self.overall_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
-        self.overall_model.calculate_probabilities()
-        
+        overall_model = hmm.HMM(initial_state_probabilities, transition_probabilities, observation_probabilities)
+        overall_model.calculate_probabilities()
+        self.overall_model_viterbi_path = overall_model.viterbi_path
         
         #Sequence information for display
         self.buffer_end = non_cds_offset - 1
@@ -217,15 +219,15 @@ class Alignment_Analysis:
             seqlogo.ax.arrow(i+2.75-3.25*arrow_direction_2, y-0.5, 6*arrow_direction_2, 0, color='orange', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
 
 
-
-        for i, state in enumerate(self.overall_model.viterbi_path):
+        # Overall Viterbi paths - overall and individual
+        for i, state in enumerate(self.overall_model_viterbi_path):
             if state in [0]:
                 seqlogo.highlight_position_range(pmin=i-0.5, pmax=i+0.5, color='rosybrown')
 
         last_pos = 0
-        for j, pairwise_hmm in enumerate(self.individual_model_list):
+        for j, path in enumerate(self.individual_model_viterbi_path):
             seqlogo.ax.text(plot_start-text_offset,y-1.55-0.4*(j+1),self.species_name_dict[self.species_names[j]])
-            for i, state in enumerate(pairwise_hmm.viterbi_path):
+            for i, state in enumerate(path):
                 if state in [0]:
                     seqlogo.ax.plot([i-0.5, i+0.5], [y-1.5-0.4*(j+1),y-1.5-0.4*(j+1)], color='slategrey', linewidth=8, solid_capstyle='butt')
             for k in self.insertion_locations[self.species_names[j]]:

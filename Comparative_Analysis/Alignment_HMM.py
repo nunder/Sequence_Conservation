@@ -34,7 +34,7 @@ class Alignment_HMM:
         self.alignment_ids = [int(i.split('.')[0]) for i in alignment_ids]
         self.alignment_dict = {}
         for group_id in tqdm(self.alignment_ids):
-            alignment = align.Alignment(alignment_dir + '/' + str(group_id) + '.fasta', master_species_id, 'NT', species_order)
+            alignment = align.Alignment(alignment_dir + '/' + str(group_id) + '.fasta', master_species_id, 'NT', insert_symbol = '-', species_order = species_order)
             alignment.modify_sequence(1, False, False)
             self.alignment_dict[group_id] = alignment
         

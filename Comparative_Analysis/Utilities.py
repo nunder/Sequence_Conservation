@@ -162,3 +162,4 @@ def read_fasta_to_array(filename, species_order = []):
         return [sequence_names, sequence_list]
     else:
         return [ordered_sequence_names, ordered_sequence_list]
+  
