@@ -29,12 +29,14 @@ import copy
 class Alignment_Analysis:
     
     def __init__(self, analysis_type, alignment, seq_data, non_cds_offset, group_id, individual_model_num_states, individual_model_parameters, overall_model, 
-                 overall_model_num_states, overall_model_parameters, non_cds_output_dir, tb_species, genome_ids, pairwise_observation_probabilities, alignment_hmm_model, model):
+                 overall_model_num_states, overall_model_parameters, non_cds_output_dir, tb_species, genome_ids, pairwise_observation_probabilities, 
+                 alignment_hmm_model, model, literature_annotations_df_list):
         self.analysis_type = analysis_type
         self.group_id = group_id
         self.alignment = copy.deepcopy(alignment) 
         self.alignment.modify_sequence(1,False,False)
         self.alignment.calculate_entropies(mvave_len = 10)
+        self.literature_annotations = [[],[]]
         self.species_name_dict = {}
         for i, r in seq_data.species_info().iterrows():
             self.species_name_dict[r['species']] = 'M.'+ (r['name'].split()[1]) 
@@ -131,6 +133,13 @@ class Alignment_Analysis:
             for k in range(4):
                 r.iloc[k] = temp_relent[k]
         
+        for i, r in literature_annotations_df_list[0].iterrows():
+            if (r['Start'] <= self.end) and (r['Stop'] >= self.start):
+                self.literature_annotations[0].append([r['Feature'], max(self.start, r['Start']), min(self.end, r['Stop'])])
+        for i, r in literature_annotations_df_list[1].iterrows():
+            if (r['Revised CDS Start'] <= self.end) and (r['Revised CDS Start'] >= self.start):
+                self.literature_annotations[1].append(['RASS', r['Revised CDS Start'], r['Revised CDS Start']])
+        
     def display_analysis(self, co_ordinate_start = -999, co_ordinate_end = -999):
         
         if co_ordinate_end < 0:
@@ -159,7 +168,7 @@ class Alignment_Analysis:
         seqlogo.style_spines(spines=['left'], visible=True, bounds=[0, 2])
         seqlogo.ax.set_xticks([])
         seqlogo.ax.set_yticks([0,2])
-        seqlogo.ax.set_ylim([-10.5, 2])
+        seqlogo.ax.set_ylim([-12, 2])
         seqlogo.ax.set_xlim([plot_start, plot_end])
         seqlogo.ax.axhline(y, color = 'k', linewidth = 1)
 
@@ -254,7 +263,21 @@ class Alignment_Analysis:
                 for i in self.alignment.find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True,
                                                      frame_start = self.target_end + reading_frame, method = 'count', rev_complement = reverse_complement):
                     seqlogo.ax.arrow(i+start, last_pos, dx, 0, color='red', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
+        
+        # Literature annotations
+        last_pos = last_pos - 0.8
+        seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'Mycobrowser_R4')
+        #To DO - Reference print co-ordinates #######################
+        for annotation in self.literature_annotations[0]:
+             seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
+             seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
+        
+        last_pos = last_pos - 0.8
+        seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')
+        for annotation in self.literature_annotations[1]:
+             seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
+             seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
+        
+        seqlogo;                                               
 
-
-        seqlogo;
         
