@@ -101,7 +101,7 @@ class Alignment_Analysis:
                 self.organism_end_co_ordinates = self.start
                 self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
                 self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
-        else:
+        elif analysis_type == 'Upstream':
             self.start = seq_data.master_species_info(self.group_id, 'upstream_non_cds_offset_start')
             self.end = seq_data.master_species_info(self.group_id, 'upstream_non_cds_offset_end')
             self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'locus_tag')
@@ -116,7 +116,23 @@ class Alignment_Analysis:
                 self.organism_end_co_ordinates = self.start
                 self.locus_tag = seq_data.master_species_info(self.group_id, 'next_locus_tag')
                 self.locus_strand = seq_data.master_species_info(self.group_id, 'next_strand')
-            
+        elif analysis_type == 'Extended_CDS':
+                self.start = seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+                self.end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end')
+                self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
+                self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
+                if self.locus_strand == 1:
+                    self.organism_start_co_ordinates = self.start
+                    self.organism_end_co_ordinates = self.end
+                    self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
+                    self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
+                else:
+                    self.organism_start_co_ordinates = self.end
+                    self.organism_end_co_ordinates = self.start
+                    self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
+                    self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
+        
+        
         self.counts_df = lm.alignment_to_matrix(sequences = self.alignment.modified_sequence_list, to_type = 'counts', characters_to_ignore = '-', pseudocount=0)
         self.background_probs = [0.25, 0.25, 0.25, 0.25]
         for i, r in self.counts_df.iterrows():
@@ -191,7 +207,7 @@ class Alignment_Analysis:
         seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
 
 
-
+        # TO DO - ensure in frame works for full region, and also look at shading
       # Stop, Start codons in frame
         tolerance = 3
         f_sense_1 = False
@@ -267,6 +283,7 @@ class Alignment_Analysis:
         # Literature annotations
         last_pos = last_pos - 0.8
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'Mycobrowser_R4')
+        #To DO - Reference print co-ordinates #######################
         for annotation in self.literature_annotations[0]:
              seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
              seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
@@ -274,10 +291,9 @@ class Alignment_Analysis:
         last_pos = last_pos - 0.8
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')
         for annotation in self.literature_annotations[1]:
-             seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
-             seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
+             seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
+             seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
         
         seqlogo;                                               
-                                                       
-        #seqlogo;
+
         
