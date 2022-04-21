@@ -249,3 +249,19 @@ class Alignment:
                     i += 1
         return match_starts   
     
+    def master_species_find_pattern(self, search_str_list, start_pos, end_pos, in_frame = False, frame_start = 0, rev_complement = False):
+            match_starts = []
+            i = start_pos
+            search_len = len(search_str_list[0])
+            while i <= end_pos - search_len:
+                if (in_frame == True) and not((i - frame_start)%3 == 0):
+                    i += 1
+                    continue
+                for search_str in search_str_list:
+                    if rev_complement == True:
+                        search_str = reverse_complement(search_str)
+                    test_seq = self.master_species_modified_sequence[i:i+search_len]
+                    if test_seq == search_str:
+                        match_starts.append(i)
+                i += 1
+            return match_starts  

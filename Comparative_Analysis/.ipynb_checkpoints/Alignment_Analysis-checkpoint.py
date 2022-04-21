@@ -84,8 +84,13 @@ class Alignment_Analysis:
         self.overall_model_viterbi_path = overall_model.viterbi_path
         
         #Sequence information for display
-        self.buffer_end = non_cds_offset - 1
-        self.target_end = self.alignment.modified_sequence_length - non_cds_offset
+        if analysis_type in ['Upstream','Downstream']:
+            self.buffer_end = non_cds_offset - 1
+            self.target_end = self.alignment.modified_sequence_length - non_cds_offset
+        else:
+            self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+            self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+        
         if analysis_type == 'Downstream':
             self.start = seq_data.master_species_info(self.group_id, 'non_cds_offset_start')
             self.end = seq_data.master_species_info(self.group_id, 'non_cds_offset_end')
@@ -203,8 +208,12 @@ class Alignment_Analysis:
 
 
         # Start and end regions
-        seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-        seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+        if self.analysis_type in ['Upstream','Downstream']:
+            seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+            seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+        else:
+            seqlogo.ax.plot([self.buffer_end-0.5, self.target_end +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+            
 
 
         # TO DO - ensure in frame works for full region, and also look at shading
@@ -285,14 +294,16 @@ class Alignment_Analysis:
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'Mycobrowser_R4')
         #To DO - Reference print co-ordinates #######################
         for annotation in self.literature_annotations[0]:
-             seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
-             seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
+            seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
+            if (annotation[1] - self.start - 1.5 >= plot_start) and (annotation[1] - self.start - 1.5 <= plot_end):
+                 seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
         
         last_pos = last_pos - 0.8
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')
         for annotation in self.literature_annotations[1]:
-             seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
-             seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
+            seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
+            if (abs(annotation[1]-print_coordinates_start)- 1.5 >= plot_start) and (abs(annotation[1]-print_coordinates_start)- 1.5 <= plot_end):
+                seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
         
         seqlogo;                                               
 
