@@ -88,8 +88,12 @@ class Alignment_Analysis:
             self.buffer_end = non_cds_offset - 1
             self.target_end = self.alignment.modified_sequence_length - non_cds_offset
         else:
-            self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-            self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+            if seq_data.master_species_info(self.group_id, 'strand') == 1:
+                self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+                self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+            else:
+                self.buffer_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'end')
+                self.target_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'start')
         
         if analysis_type == 'Downstream':
             self.start = seq_data.master_species_info(self.group_id, 'non_cds_offset_start')
@@ -160,7 +164,20 @@ class Alignment_Analysis:
         for i, r in literature_annotations_df_list[1].iterrows():
             if (r['Revised CDS Start'] <= self.end) and (r['Revised CDS Start'] >= self.start):
                 self.literature_annotations[1].append(['RASS', r['Revised CDS Start'], r['Revised CDS Start']])
-        
+    
+    def plot_annotation(print_coordinates_start, print_coordinates_end, coord_1, coord_2, label, colour, last_pos):
+        if print_coordinates_start < print_coordinates_end:
+            if coord_1 <= print_coordinates_end and coord_2 >= print_coordinates_start:
+                    seqlogo.ax.plot([max(coord_1, print_coordinates_start) - print_coordinates_start - 1.5, min(coord_2, print_coordinates_end) -print_coordinates_start-0.5], 
+                                    [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
+                    seqlogo.ax.text(max(coord_1, print_coordinates_start) - print_coordinates_start - 1.5,last_pos - 0.5, label)
+                    
+        if print_coordinates_start > print_coordinates_end:
+            if coord_1 <= print_coordinates_start and coord_2 >= print_coordinates_end:
+                    seqlogo.ax.plot([print_coordinates_start - max(coord_1, print_coordinates_end) - 1.5, print_coordinates_start - min(coord_2, print_coordinates_start)-0.5], 
+                                    [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
+                    seqlogo.ax.text(max(coord_1, print_coordinates_start) - print_coordinates_start - 1.5,last_pos - 0.5, label)    
+    
     def display_analysis(self, co_ordinate_start = -999, co_ordinate_end = -999):
         
         if co_ordinate_end < 0:
@@ -229,9 +246,12 @@ class Alignment_Analysis:
         if self.analysis_type == 'Upstream': 
             f_start_1 = self.target_end
             f_start_2 = self.buffer_end - 2
-        else:
+        elif self.analysis_type == 'Downstream':
             f_start_1 = self.buffer_end - 2
             f_start_2 = self.target_end
+        else:
+            f_start_1 = self.target_end 
+            f_start_2 = self.target_end 
 
 
         for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
@@ -252,7 +272,13 @@ class Alignment_Analysis:
         for i in self.alignment.find_pattern(['TANNNT'] , 0 , self.alignment.modified_sequence_length, 1.3,0, method = 'entropy', rev_complement = f_sense_1):
             seqlogo.ax.arrow(i+2.75-3.25*arrow_direction_2, y-0.5, 6*arrow_direction_2, 0, color='orange', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True)
 
-
+        # Starts and stops in master species
+        
+        for i in self.alignment.master_species_find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length, in_frame = True, frame_start = f_start_1, rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i-0.5, y-1, 3, 0, color='green', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
+        for i in self.alignment.master_species_find_pattern(['TAG','TGA','TAA'],0,self.alignment.modified_sequence_length, in_frame = True, frame_start = f_start_1, rev_complement = f_sense_1):
+            seqlogo.ax.arrow(i-0.5, y-1, 3, 0, color='red', head_length = 1, head_width = 0.3, width = 0.1, linestyle ='solid', length_includes_head = True, zorder = 3)
+        
         # Overall Viterbi paths - overall and individual
         for i, state in enumerate(self.overall_model_viterbi_path):
             if state in [0]:
@@ -294,9 +320,9 @@ class Alignment_Analysis:
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'Mycobrowser_R4')
         #To DO - Reference print co-ordinates #######################
         for annotation in self.literature_annotations[0]:
-            seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
-            if (annotation[1] - self.start - 1.5 >= plot_start) and (annotation[1] - self.start - 1.5 <= plot_end):
-                 seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
+            seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
+            if (abs(annotation[1]-print_coordinates_start) - 1.5 >= plot_start) and (abs(annotation[1]-print_coordinates_start) - 1.5 <= plot_end):
+                 seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
         
         last_pos = last_pos - 0.8
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')

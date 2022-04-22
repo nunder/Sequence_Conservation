@@ -164,7 +164,20 @@ class Alignment_Analysis:
         for i, r in literature_annotations_df_list[1].iterrows():
             if (r['Revised CDS Start'] <= self.end) and (r['Revised CDS Start'] >= self.start):
                 self.literature_annotations[1].append(['RASS', r['Revised CDS Start'], r['Revised CDS Start']])
-        
+    
+    def plot_annotation(self, seqlogo, coordinates_start, coordinates_end, print_coordinates_start, print_coordinates_end, coord_1, coord_2, label, colour, last_pos):
+        if coordinates_start < coordinates_end:
+            if coord_1 <= print_coordinates_end and coord_2 >= print_coordinates_start:
+                    seqlogo.ax.plot([max(coord_1, coordinates_start) - coordinates_start - 1.5, min(coord_2, coordinates_end) - coordinates_start-0.5], 
+                                    [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
+                    seqlogo.ax.text(max(coord_1, coordinates_start, print_coordinates_start) - coordinates_start - 1.5,last_pos - 0.5, label)
+                    
+        if coordinates_start > coordinates_end:
+            if coord_1 <= print_coordinates_start and coord_2 >= print_coordinates_end:
+                    seqlogo.ax.plot([coordinates_start - max(coord_1, coordinates_end) - 1.5, coordinates_start - min(coord_2, coordinates_start)-0.5], 
+                                    [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
+                    seqlogo.ax.text(coordinates_start - min(coord_2, print_coordinates_start)-0.5,last_pos - 0.5, label)    
+    
     def display_analysis(self, co_ordinate_start = -999, co_ordinate_end = -999):
         
         if co_ordinate_end < 0:
@@ -307,16 +320,13 @@ class Alignment_Analysis:
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'Mycobrowser_R4')
         #To DO - Reference print co-ordinates #######################
         for annotation in self.literature_annotations[0]:
-            seqlogo.ax.plot([annotation[1]-self.start- 1.5, annotation[2]- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
-            if (annotation[1] - self.start - 1.5 >= plot_start) and (annotation[1] - self.start - 1.5 <= plot_end):
-                 seqlogo.ax.text(annotation[1]-self.start- 1.5,last_pos - 0.5,annotation[0])
-        
+            self.plot_annotation(seqlogo, self.organism_start_co_ordinates, self.organism_end_co_ordinates, print_coordinates_start, print_coordinates_end, annotation[1], annotation[2], annotation[0], 'blue', last_pos)
+                  
         last_pos = last_pos - 0.8
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')
         for annotation in self.literature_annotations[1]:
-            seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
-            if (abs(annotation[1]-print_coordinates_start)- 1.5 >= plot_start) and (abs(annotation[1]-print_coordinates_start)- 1.5 <= plot_end):
-                seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
+            self.plot_annotation(seqlogo, self.organism_start_co_ordinates, self.organism_end_co_ordinates, print_coordinates_start, print_coordinates_end, annotation[1], annotation[2], annotation[0], 'red', last_pos)
+           
         
         seqlogo;                                               
 
