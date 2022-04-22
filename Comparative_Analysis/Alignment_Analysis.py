@@ -84,62 +84,33 @@ class Alignment_Analysis:
         self.overall_model_viterbi_path = overall_model.viterbi_path
         
         #Sequence information for display
-        if analysis_type in ['Upstream','Downstream']:
-            self.buffer_end = non_cds_offset - 1
-            self.target_end = self.alignment.modified_sequence_length - non_cds_offset
+       
+        if seq_data.master_species_info(self.group_id, 'strand') == 1:
+            self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+            self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
         else:
-            if seq_data.master_species_info(self.group_id, 'strand') == 1:
-                self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-                self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-            else:
-                self.buffer_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'end')
-                self.target_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'start')
+            self.buffer_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'end')
+            self.target_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'start')
         
-        if analysis_type == 'Downstream':
-            self.start = seq_data.master_species_info(self.group_id, 'non_cds_offset_start')
-            self.end = seq_data.master_species_info(self.group_id, 'non_cds_offset_end')
-            self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
-            self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
-            if self.locus_strand == 1:
-                self.organism_start_co_ordinates = self.start
-                self.organism_end_co_ordinates = self.end
-                self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
-                self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
-            else:
-                self.organism_start_co_ordinates = self.end
-                self.organism_end_co_ordinates = self.start
-                self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
-                self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
-        elif analysis_type == 'Upstream':
-            self.start = seq_data.master_species_info(self.group_id, 'upstream_non_cds_offset_start')
-            self.end = seq_data.master_species_info(self.group_id, 'upstream_non_cds_offset_end')
-            self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'locus_tag')
-            self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'strand')
-            if self.locus_strand_2 == 1:
-                self.organism_start_co_ordinates = self.start
-                self.organism_end_co_ordinates = self.end
-                self.locus_tag = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
-                self.locus_strand = seq_data.master_species_info(self.group_id, 'prev_strand')
-            else:
-                self.organism_start_co_ordinates = self.end
-                self.organism_end_co_ordinates = self.start
-                self.locus_tag = seq_data.master_species_info(self.group_id, 'next_locus_tag')
-                self.locus_strand = seq_data.master_species_info(self.group_id, 'next_strand')
-        elif analysis_type == 'Extended_CDS':
-                self.start = seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-                self.end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end')
-                self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
-                self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
-                if self.locus_strand == 1:
-                    self.organism_start_co_ordinates = self.start
-                    self.organism_end_co_ordinates = self.end
-                    self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
-                    self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
-                else:
-                    self.organism_start_co_ordinates = self.end
-                    self.organism_end_co_ordinates = self.start
-                    self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
-                    self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
+        self.start = seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+        self.end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end')
+        self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
+        self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
+        
+        if self.locus_strand == 1:
+            self.organism_start_co_ordinates = self.start
+            self.organism_end_co_ordinates = self.end
+            self.locus_tag_1 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
+            self.locus_strand_1 = seq_data.master_species_info(self.group_id, 'prev_strand')
+            self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
+            self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
+        else:
+            self.organism_start_co_ordinates = self.end
+            self.organism_end_co_ordinates = self.start
+            self.locus_tag_1 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
+            self.locus_strand_1 = seq_data.master_species_info(self.group_id, 'next_strand')
+            self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
+            self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
         
         
         self.counts_df = lm.alignment_to_matrix(sequences = self.alignment.modified_sequence_list, to_type = 'counts', characters_to_ignore = '-', pseudocount=0)
@@ -211,47 +182,33 @@ class Alignment_Analysis:
         seqlogo.ax.axhline(y, color = 'k', linewidth = 1)
 
         #Title
-        if self.analysis_type == 'Upstream':
-            seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag_2)
-        else:
-            seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag)
+        sign_symbol = lambda x : '+' if (x > 0) else '-'
+        seqlogo.ax.set_title(str(self.locus_tag) + ' ('+sign_symbol(self.locus_strand)+')' + ' and inter CDS regions')
 
         #Text labels 
-        sign_symbol = lambda x : '+' if (x > 0) else '-'
-        seqlogo.ax.text(plot_start-text_offset,y,str(self.locus_tag) + ' ('+sign_symbol(self.locus_strand)+')')
+        seqlogo.ax.text(plot_start-text_offset,y,str(self.locus_tag_1) + ' ('+sign_symbol(self.locus_strand_1)+')')
         seqlogo.ax.text(plot_start-text_offset,1.2*y,print_coordinates_start, verticalalignment='top', horizontalalignment='left')
         seqlogo.ax.text(plot_end + 1, y,str(self.locus_tag_2)+ ' ('+sign_symbol(self.locus_strand_2)+')', horizontalalignment='left')
         seqlogo.ax.text(plot_end + 1, 1.2*y,print_coordinates_end, verticalalignment='top', horizontalalignment='left')
 
 
         # Start and end regions
-        if self.analysis_type in ['Upstream','Downstream']:
-            seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-            seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-        else:
-            seqlogo.ax.plot([self.buffer_end-0.5, self.target_end +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+        seqlogo.ax.plot([self.buffer_end-0.5, self.target_end +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
             
 
-
-        # TO DO - ensure in frame works for full region, and also look at shading
-      # Stop, Start codons in frame
+        # Stop, Start codons in frame
         tolerance = 3
         f_sense_1 = False
+        
         if self.locus_strand == self.locus_strand_2:
             f_sense_2 = False
             arrow_direction_2 = 1
         else:
             f_sense_2 = True
             arrow_direction_2 = -1
-        if self.analysis_type == 'Upstream': 
-            f_start_1 = self.target_end
-            f_start_2 = self.buffer_end - 2
-        elif self.analysis_type == 'Downstream':
-            f_start_1 = self.buffer_end - 2
-            f_start_2 = self.target_end
-        else:
-            f_start_1 = self.target_end 
-            f_start_2 = self.target_end 
+        
+        f_start_1 = self.target_end 
+        f_start_2 = self.target_end 
 
 
         for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
