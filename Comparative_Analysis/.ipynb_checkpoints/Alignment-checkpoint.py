@@ -45,7 +45,79 @@ def align_and_build(id_list, num_subsets, subset_num, source_data, length_field,
             except Exception as e:
                 pass
             util.delete_if_exists(out_loc +'temp'+str(j)+'.fasta')
-            
+
+def extract_non_cds_regions_from_alignment(genome_data, master_species, group_id, source_file, out_file, min_length): 
+    temp_df = genome_data[genome_data['group_id'] == group_id]
+    temp_df = temp_df[temp_df['species'] == master_species]
+    cds_extended_region_start = int(temp_df['cds_extended_region_start'].iloc[0])
+    cds_extended_region_end = int(temp_df['cds_extended_region_end'].iloc[0])
+    cds_start = int(temp_df['start'].iloc[0])
+    cds_end = int(temp_df['end'].iloc[0])
+    cds_strand = int(temp_df['strand'].iloc[0])
+    sequence_count = -1
+    with open(source_file,'r') as ofile:
+        sequence_list = []
+        name_list = []
+        first_seq = 0
+        for l in ofile:
+            m = l.strip('\n')
+            if m[0] == '>':
+                sequence_count += 1
+                if first_seq == 0:
+                    sequence_name = m[1:]
+                    outstr = ''
+                else:
+                    sequence_list.append(list(outstr))
+                    sequence_name = m[1:]
+                    outstr = ''
+                if sequence_name == master_species:
+                    master_species_index = sequence_count
+                name_list.append(sequence_name)
+            else:
+                first_seq = 1
+                outstr += m
+        sequence_list.append(list(outstr))
+        sequence_name = m[1:]
+    # Delete entries corresponding to inserts in master
+    positions_to_delete = []
+    for i, letter in enumerate(sequence_list[master_species_index]):
+        if letter == '-':
+            positions_to_delete.append(i)
+    for i in sorted(positions_to_delete, reverse=True):
+        for j in sequence_list:
+            del j[i]    
+    
+    # Generate two files - one 'upstream' one 'downstream' if greater than minimum length
+    if cds_strand > 0:
+        upstream_start = 0
+        upstream_end = cds_start - cds_extended_region_start
+        downstream_end = len(sequence_list[0])
+        downstream_start = downstream_end - (cds_extended_region_end - cds_end)
+    else:
+        upstream_start = 0
+        upstream_end = cds_extended_region_end - cds_end
+        downstream_end = len(sequence_list[0])
+        downstream_start = downstream_end - (cds_start - cds_extended_region_start)
+       
+    upstream_length = upstream_end - upstream_start
+    downstream_length = downstream_end - downstream_start
+    for i in range(2):
+        if i == 0:
+            if upstream_length >= min_length:
+                trimmed_sequence_list = [''.join(x[upstream_start:upstream_end]) for x in sequence_list]
+            else:
+                continue
+        else:
+            if downstream_length >= min_length:
+                trimmed_sequence_list = [''.join(x[downstream_start:downstream_end]) for x in sequence_list]
+            else:
+                continue
+        with open(out_file,'w') as outfile:
+            for i in range(len(name_list)):
+                #outfile.write(">" + name_list[i] + "\n")      
+                #outfile.write(trimmed_sequence_list[i] + "\n")        
+                print(">" + name_list[i] + "\n") 
+                print(trimmed_sequence_list[i] + "\n")     
 
 def relative_entropy(sequence_list, alphabet_name = 'NT', *args, **kwargs):
     alphabet_list = kwargs.get('alphabet_list',[])
@@ -249,3 +321,19 @@ class Alignment:
                     i += 1
         return match_starts   
     
+    def master_species_find_pattern(self, search_str_list, start_pos, end_pos, in_frame = False, frame_start = 0, rev_complement = False):
+            match_starts = []
+            i = start_pos
+            search_len = len(search_str_list[0])
+            while i <= end_pos - search_len:
+                if (in_frame == True) and not((i - frame_start)%3 == 0):
+                    i += 1
+                    continue
+                for search_str in search_str_list:
+                    if rev_complement == True:
+                        search_str = reverse_complement(search_str)
+                    test_seq = self.master_species_modified_sequence[i:i+search_len]
+                    if test_seq == search_str:
+                        match_starts.append(i)
+                i += 1
+            return match_starts  

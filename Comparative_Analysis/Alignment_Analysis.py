@@ -28,7 +28,7 @@ import copy
 
 class Alignment_Analysis:
     
-    def __init__(self, analysis_type, alignment, seq_data, non_cds_offset, group_id, individual_model_num_states, individual_model_parameters, overall_model, 
+    def __init__(self, analysis_type, alignment, seq_data, group_id, individual_model_num_states, individual_model_parameters, overall_model, 
                  overall_model_num_states, overall_model_parameters, non_cds_output_dir, tb_species, genome_ids, pairwise_observation_probabilities, 
                  alignment_hmm_model, model, literature_annotations_df_list):
         self.analysis_type = analysis_type

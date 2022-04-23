@@ -132,7 +132,7 @@ def parse_genbank(input_filename, non_cds_offset = 0):
             df.at[i,'ss_non_cds_start'] = int(r['ss_prev_end'])
             df.at[i,'ss_non_cds_end'] = int(r['start'])
             df.at[i,'ss_non_cds_seq']=str((genome_record.seq[int(r['ss_prev_end']):int(r['start'])]).reverse_complement())
-            df.at[i,'cds_extended_region_seq']= str((genome_record.seq[int(r['end']):int(r['next_start'])]).reverse_complement()) + r['cds_seq'] + str((genome_record.seq[int(r['prev_end']):int(r['start'])]).reverse_complement())
+            df.at[i,'cds_extended_region_seq']= str((genome_record.seq[int(r['prev_end']):int(r['next_start'])]).reverse_complement()) 
             df.at[i,'cds_extended_region_start']= int(r['prev_end'])
             df.at[i,'cds_extended_region_end']= int(r['next_start'])
     
@@ -236,7 +236,7 @@ class Ortholog_Sequence_Dataset:
         genomes = util.chunk_list(genome_ids, num_subsets, subset_num)
         df_list = []
         for id in genomes:
-            cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff',non_cds_offset)
+            cds_data = parse_genbank(genome_datasets_dir + '/' + id +'/genomic.gbff', non_cds_offset)
             
             if single_copy == True:
                 orthologs_for_id = ortholog_grouping.single_copy_orthologs_df[ortholog_grouping.single_copy_orthologs_df['species'] == id]
