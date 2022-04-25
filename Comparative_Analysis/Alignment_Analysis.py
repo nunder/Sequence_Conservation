@@ -149,7 +149,7 @@ class Alignment_Analysis:
                                     [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
                     seqlogo.ax.text(coordinates_start - min(coord_2, print_coordinates_start)-0.5,last_pos - 0.5, label)    
     
-    def display_analysis(self, co_ordinate_start = -999, co_ordinate_end = -999):
+    def display_analysis(self, mutation_count_dict, co_ordinate_start = -999, co_ordinate_end = -999):
         
         if co_ordinate_end < 0:
             plot_start = -0.5
@@ -283,7 +283,22 @@ class Alignment_Analysis:
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')
         for annotation in self.literature_annotations[1]:
             self.plot_annotation(seqlogo, self.organism_start_co_ordinates, self.organism_end_co_ordinates, print_coordinates_start, print_coordinates_end, annotation[1], annotation[2], annotation[0], 'red', last_pos)
-           
+        
+        
+        for i in range(min(print_coordinates_start, print_coordinates_end), max(print_coordinates_start, print_coordinates_end)):
+            v = mutation_count_dict[i]
+            if v > 0:
+                if self.organism_start_co_ordinates < self.organism_end_co_ordinates:
+                    temp = self.organism_start_co_ordinates
+                    seqlogo.ax.plot([i - temp - 1, i - temp - 1], 
+                                        [last_pos,last_pos+v/10], color='black', linewidth=3, solid_capstyle='butt')
+                
+                else:
+                    temp = self.organism_start_co_ordinates
+                    seqlogo.ax.plot([temp -i-1, temp-i - 1], 
+                                        [last_pos,last_pos+v/10], color='black', linewidth=3, solid_capstyle='butt')
+            
+        
         
         seqlogo;                                               
 

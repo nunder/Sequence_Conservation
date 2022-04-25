@@ -28,7 +28,7 @@ import copy
 
 class Alignment_Analysis:
     
-    def __init__(self, analysis_type, alignment, seq_data, non_cds_offset, group_id, individual_model_num_states, individual_model_parameters, overall_model, 
+    def __init__(self, analysis_type, alignment, seq_data, group_id, individual_model_num_states, individual_model_parameters, overall_model, 
                  overall_model_num_states, overall_model_parameters, non_cds_output_dir, tb_species, genome_ids, pairwise_observation_probabilities, 
                  alignment_hmm_model, model, literature_annotations_df_list):
         self.analysis_type = analysis_type
@@ -84,62 +84,33 @@ class Alignment_Analysis:
         self.overall_model_viterbi_path = overall_model.viterbi_path
         
         #Sequence information for display
-        if analysis_type in ['Upstream','Downstream']:
-            self.buffer_end = non_cds_offset - 1
-            self.target_end = self.alignment.modified_sequence_length - non_cds_offset
+       
+        if seq_data.master_species_info(self.group_id, 'strand') == 1:
+            self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+            self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
         else:
-            if seq_data.master_species_info(self.group_id, 'strand') == 1:
-                self.buffer_end = seq_data.master_species_info(self.group_id, 'start') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-                self.target_end = seq_data.master_species_info(self.group_id, 'end') - seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-            else:
-                self.buffer_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'end')
-                self.target_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'start')
+            self.buffer_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'end')
+            self.target_end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end') - seq_data.master_species_info(self.group_id, 'start')
         
-        if analysis_type == 'Downstream':
-            self.start = seq_data.master_species_info(self.group_id, 'non_cds_offset_start')
-            self.end = seq_data.master_species_info(self.group_id, 'non_cds_offset_end')
-            self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
-            self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
-            if self.locus_strand == 1:
-                self.organism_start_co_ordinates = self.start
-                self.organism_end_co_ordinates = self.end
-                self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
-                self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
-            else:
-                self.organism_start_co_ordinates = self.end
-                self.organism_end_co_ordinates = self.start
-                self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
-                self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
-        elif analysis_type == 'Upstream':
-            self.start = seq_data.master_species_info(self.group_id, 'upstream_non_cds_offset_start')
-            self.end = seq_data.master_species_info(self.group_id, 'upstream_non_cds_offset_end')
-            self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'locus_tag')
-            self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'strand')
-            if self.locus_strand_2 == 1:
-                self.organism_start_co_ordinates = self.start
-                self.organism_end_co_ordinates = self.end
-                self.locus_tag = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
-                self.locus_strand = seq_data.master_species_info(self.group_id, 'prev_strand')
-            else:
-                self.organism_start_co_ordinates = self.end
-                self.organism_end_co_ordinates = self.start
-                self.locus_tag = seq_data.master_species_info(self.group_id, 'next_locus_tag')
-                self.locus_strand = seq_data.master_species_info(self.group_id, 'next_strand')
-        elif analysis_type == 'Extended_CDS':
-                self.start = seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
-                self.end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end')
-                self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
-                self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
-                if self.locus_strand == 1:
-                    self.organism_start_co_ordinates = self.start
-                    self.organism_end_co_ordinates = self.end
-                    self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
-                    self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
-                else:
-                    self.organism_start_co_ordinates = self.end
-                    self.organism_end_co_ordinates = self.start
-                    self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
-                    self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
+        self.start = seq_data.master_species_info(self.group_id, 'cds_extended_region_start')
+        self.end = seq_data.master_species_info(self.group_id, 'cds_extended_region_end')
+        self.locus_tag = seq_data.master_species_info(self.group_id, 'locus_tag')
+        self.locus_strand = seq_data.master_species_info(self.group_id, 'strand')
+        
+        if self.locus_strand == 1:
+            self.organism_start_co_ordinates = self.start
+            self.organism_end_co_ordinates = self.end
+            self.locus_tag_1 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
+            self.locus_strand_1 = seq_data.master_species_info(self.group_id, 'prev_strand')
+            self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
+            self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'next_strand')
+        else:
+            self.organism_start_co_ordinates = self.end
+            self.organism_end_co_ordinates = self.start
+            self.locus_tag_1 = seq_data.master_species_info(self.group_id, 'next_locus_tag')
+            self.locus_strand_1 = seq_data.master_species_info(self.group_id, 'next_strand')
+            self.locus_tag_2 = seq_data.master_species_info(self.group_id, 'previous_locus_tag')
+            self.locus_strand_2 = seq_data.master_species_info(self.group_id, 'prev_strand')
         
         
         self.counts_df = lm.alignment_to_matrix(sequences = self.alignment.modified_sequence_list, to_type = 'counts', characters_to_ignore = '-', pseudocount=0)
@@ -165,20 +136,20 @@ class Alignment_Analysis:
             if (r['Revised CDS Start'] <= self.end) and (r['Revised CDS Start'] >= self.start):
                 self.literature_annotations[1].append(['RASS', r['Revised CDS Start'], r['Revised CDS Start']])
     
-    def plot_annotation(print_coordinates_start, print_coordinates_end, coord_1, coord_2, label, colour, last_pos):
-        if print_coordinates_start < print_coordinates_end:
+    def plot_annotation(self, seqlogo, coordinates_start, coordinates_end, print_coordinates_start, print_coordinates_end, coord_1, coord_2, label, colour, last_pos):
+        if coordinates_start < coordinates_end:
             if coord_1 <= print_coordinates_end and coord_2 >= print_coordinates_start:
-                    seqlogo.ax.plot([max(coord_1, print_coordinates_start) - print_coordinates_start - 1.5, min(coord_2, print_coordinates_end) -print_coordinates_start-0.5], 
+                    seqlogo.ax.plot([max(coord_1, coordinates_start) - coordinates_start - 1.5, min(coord_2, coordinates_end) - coordinates_start-0.5], 
                                     [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
-                    seqlogo.ax.text(max(coord_1, print_coordinates_start) - print_coordinates_start - 1.5,last_pos - 0.5, label)
+                    seqlogo.ax.text(max(coord_1, coordinates_start, print_coordinates_start) - coordinates_start - 1.5,last_pos - 0.5, label)
                     
-        if print_coordinates_start > print_coordinates_end:
+        if coordinates_start > coordinates_end:
             if coord_1 <= print_coordinates_start and coord_2 >= print_coordinates_end:
-                    seqlogo.ax.plot([print_coordinates_start - max(coord_1, print_coordinates_end) - 1.5, print_coordinates_start - min(coord_2, print_coordinates_start)-0.5], 
+                    seqlogo.ax.plot([coordinates_start - max(coord_1, coordinates_end) - 1.5, coordinates_start - min(coord_2, coordinates_start)-0.5], 
                                     [last_pos,last_pos], color=colour, linewidth=3, solid_capstyle='butt')
-                    seqlogo.ax.text(max(coord_1, print_coordinates_start) - print_coordinates_start - 1.5,last_pos - 0.5, label)    
+                    seqlogo.ax.text(coordinates_start - min(coord_2, print_coordinates_start)-0.5,last_pos - 0.5, label)    
     
-    def display_analysis(self, co_ordinate_start = -999, co_ordinate_end = -999):
+    def display_analysis(self, mutation_count_dict, co_ordinate_start = -999, co_ordinate_end = -999):
         
         if co_ordinate_end < 0:
             plot_start = -0.5
@@ -211,47 +182,33 @@ class Alignment_Analysis:
         seqlogo.ax.axhline(y, color = 'k', linewidth = 1)
 
         #Title
-        if self.analysis_type == 'Upstream':
-            seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag_2)
-        else:
-            seqlogo.ax.set_title(self.analysis_type + ' of ' + self.locus_tag)
+        sign_symbol = lambda x : '+' if (x > 0) else '-'
+        seqlogo.ax.set_title(str(self.locus_tag) + ' ('+sign_symbol(self.locus_strand)+')' + ' and inter CDS regions')
 
         #Text labels 
-        sign_symbol = lambda x : '+' if (x > 0) else '-'
-        seqlogo.ax.text(plot_start-text_offset,y,str(self.locus_tag) + ' ('+sign_symbol(self.locus_strand)+')')
+        seqlogo.ax.text(plot_start-text_offset,y,str(self.locus_tag_1) + ' ('+sign_symbol(self.locus_strand_1)+')')
         seqlogo.ax.text(plot_start-text_offset,1.2*y,print_coordinates_start, verticalalignment='top', horizontalalignment='left')
         seqlogo.ax.text(plot_end + 1, y,str(self.locus_tag_2)+ ' ('+sign_symbol(self.locus_strand_2)+')', horizontalalignment='left')
         seqlogo.ax.text(plot_end + 1, 1.2*y,print_coordinates_end, verticalalignment='top', horizontalalignment='left')
 
 
         # Start and end regions
-        if self.analysis_type in ['Upstream','Downstream']:
-            seqlogo.ax.plot([-0.5, self.buffer_end+0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-            seqlogo.ax.plot([self.target_end-0.5, self.alignment.modified_sequence_length +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
-        else:
-            seqlogo.ax.plot([self.buffer_end-0.5, self.target_end +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
+        seqlogo.ax.plot([self.buffer_end-0.5, self.target_end +0.5], [y,y], color='skyblue', linewidth=10, solid_capstyle='butt')
             
 
-
-        # TO DO - ensure in frame works for full region, and also look at shading
-      # Stop, Start codons in frame
+        # Stop, Start codons in frame
         tolerance = 3
         f_sense_1 = False
+        
         if self.locus_strand == self.locus_strand_2:
             f_sense_2 = False
             arrow_direction_2 = 1
         else:
             f_sense_2 = True
             arrow_direction_2 = -1
-        if self.analysis_type == 'Upstream': 
-            f_start_1 = self.target_end
-            f_start_2 = self.buffer_end - 2
-        elif self.analysis_type == 'Downstream':
-            f_start_1 = self.buffer_end - 2
-            f_start_2 = self.target_end
-        else:
-            f_start_1 = self.target_end 
-            f_start_2 = self.target_end 
+        
+        f_start_1 = self.target_end 
+        f_start_2 = self.target_end 
 
 
         for i in self.alignment.find_pattern(['ATG','GTG','TTG','CTG'],0,self.alignment.modified_sequence_length,1,tolerance,in_frame = True, frame_start = f_start_1, method = 'count', rev_complement = f_sense_1):
@@ -320,16 +277,22 @@ class Alignment_Analysis:
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'Mycobrowser_R4')
         #To DO - Reference print co-ordinates #######################
         for annotation in self.literature_annotations[0]:
-            seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)- self.start-0.5], [last_pos,last_pos], color='blue', linewidth=3, solid_capstyle='butt')
-            if (abs(annotation[1]-print_coordinates_start) - 1.5 >= plot_start) and (abs(annotation[1]-print_coordinates_start) - 1.5 <= plot_end):
-                 seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
-        
+            self.plot_annotation(seqlogo, self.organism_start_co_ordinates, self.organism_end_co_ordinates, print_coordinates_start, print_coordinates_end, annotation[1], annotation[2], annotation[0], 'blue', last_pos)
+                  
         last_pos = last_pos - 0.8
         seqlogo.ax.text(plot_start-text_offset,last_pos-0.05,'DeJesus (2013)')
         for annotation in self.literature_annotations[1]:
-            seqlogo.ax.plot([abs(annotation[1]-print_coordinates_start)- 1.5, abs(annotation[2]-print_coordinates_start)-0.5], [last_pos,last_pos], color='red', linewidth=3, solid_capstyle='butt')
-            if (abs(annotation[1]-print_coordinates_start)- 1.5 >= plot_start) and (abs(annotation[1]-print_coordinates_start)- 1.5 <= plot_end):
-                seqlogo.ax.text(abs(annotation[1]-print_coordinates_start)- 1.5,last_pos - 0.5,annotation[0])
+            self.plot_annotation(seqlogo, self.organism_start_co_ordinates, self.organism_end_co_ordinates, print_coordinates_start, print_coordinates_end, annotation[1], annotation[2], annotation[0], 'red', last_pos)
+        
+        
+        for i in range(min(print_coordinates_start, print_coordinates_end), max(print_coordinates_start, print_coordinates_end)):
+            v = mutation_count_dict[i]
+            if v > 0:
+                temp = min(print_coordinates_start, print_coordinates_end)
+                seqlogo.ax.plot([i - temp - 1.5, i - temp - 0.5], 
+                                    [last_pos,last_pos+v/10], color=colour, linewidth=3, solid_capstyle='butt')
+            
+        
         
         seqlogo;                                               
 
