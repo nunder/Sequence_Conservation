@@ -285,18 +285,19 @@ class Alignment_Analysis:
             self.plot_annotation(seqlogo, self.organism_start_co_ordinates, self.organism_end_co_ordinates, print_coordinates_start, print_coordinates_end, annotation[1], annotation[2], annotation[0], 'red', last_pos)
         
         
-        for i in range(min(print_coordinates_start, print_coordinates_end), max(print_coordinates_start, print_coordinates_end)):
-            v = mutation_count_dict[i]
-            if v > 0:
-                if self.organism_start_co_ordinates < self.organism_end_co_ordinates:
-                    temp = self.organism_start_co_ordinates
-                    seqlogo.ax.plot([i - temp - 1, i - temp - 1], 
-                                        [last_pos,last_pos+v/10], color='black', linewidth=3, solid_capstyle='butt')
+        #Cryptic counts
+        #for i in range(min(print_coordinates_start, print_coordinates_end), max(print_coordinates_start, print_coordinates_end)):
+        #    v = mutation_count_dict[i]
+        #    if v > 0:
+        #        if self.organism_start_co_ordinates < self.organism_end_co_ordinates:
+        #            temp = self.organism_start_co_ordinates
+        #            seqlogo.ax.plot([i - temp - 1, i - temp - 1], 
+        #                                [last_pos,last_pos+v/10], color='black', linewidth=3, solid_capstyle='butt')
                 
-                else:
-                    temp = self.organism_start_co_ordinates
-                    seqlogo.ax.plot([temp -i-1, temp-i - 1], 
-                                        [last_pos,last_pos+v/10], color='black', linewidth=3, solid_capstyle='butt')
+        #        else:
+        #            temp = self.organism_start_co_ordinates
+        #            seqlogo.ax.plot([temp -i-1, temp-i - 1], 
+        #                                [last_pos,last_pos+v/10], color='black', linewidth=3, solid_capstyle='butt')
             
         
         
