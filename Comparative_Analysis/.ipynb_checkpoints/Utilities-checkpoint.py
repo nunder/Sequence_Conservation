@@ -162,3 +162,30 @@ def read_fasta_to_array(filename, species_order = []):
         return [sequence_names, sequence_list]
     else:
         return [ordered_sequence_names, ordered_sequence_list]
+  
+ 
+class Translator:
+    def __init__(self):
+        self.codon_dict = {}
+    with open('D:/Project_Data/Project_3/Datasets/Reference_Tables/Standard_Code.txt') as f:
+        for l in f:
+            pass
+            #self.codon_dict[str(l[1:4])] = l[5]
+        
+    def translate_sequence(self, input_seq, strand, rf, separate_start_symbol = False, separate_stop_symbol = False):
+        output_seq = ''
+        if strand == 1:
+            seq = input_seq[rf:]
+        else:
+            seq = align.reverse_complement(input_seq)[rf:]
+        for i in range(0,len(seq)-2,3):
+            if separate_start_symbol == True and seq[i:(i+3)] in ['ATG','GTG','TTG']:
+                output_seq += 'Z'
+            elif separate_stop_symbol == True and seq[i:(i+3)] in ['TAG','TGA','TAA']:
+                output_seq += 'J'
+            else:
+                if seq[i:(i+3)] in self.codon_dict:
+                    output_seq += self.codon_dict[seq[i:(i+3)]]
+                else:
+                    output_seq += 'X'
+        return output_seq
