@@ -42,8 +42,9 @@ def process_blast_output(infile_loc, outfile_loc, names_dict, top_hit_only = Fal
     blast_results = pd.read_csv(infile_loc, header = None)
     blast_results.columns = ['query_ref', 'target_ref', 'query_length', 'subject_length', 'percent_identical_matches','alignment_length', 'number_mismatches', 'number_of_gap_openings', 'query_start_alignment', 'query_end_alignment', 'target_start_alignment', 'target_end_alignment', 'e_value', 'bit_score']
     for i, r in blast_results.iterrows():
-        blast_results.at[i, 'query_species'] = '_'.join(r.query_ref.split('_')[0:2])
-        blast_results.at[i, 'target_species'] = '_'.join(r.target_ref.split('_')[0:2])
+        blast_results.at[i, 'query_species'] = r.query_ref.split('@')[0]
+        blast_results.at[i, 'target_species'] = r.target_ref.split('@')[0]
+       # blast_results.at[i, 'target_species'] = '_'.join(r.target_ref.split('_')[:-2])
     blast_results['query_species_name'] = blast_results['query_species'].map(names_dict)
     blast_results['target_species_name'] = blast_results['target_species'].map(names_dict)
     if top_hit_only == True:
@@ -69,3 +70,47 @@ def keep_reciprocal_best_hits(query_df, reverse_query_df, outfile_loc):
     with open(outfile_loc, 'wb') as f:
         pickle.dump(output, f)
     return output
+
+def align_keep_top_hit_per_species(files_dir, hit_file, alignment_file, output_alignment_file, package, evalue = 0.01): 
+    wsl_files_loc = util.wslname(files_dir)
+    dict = {}
+    if package == 'INFERNAL':
+        with open(files_dir + '/' + hit_file, 'r') as f:
+            for l in f:
+                if not(l[0] == '#'): 
+                    a = l.split()
+                    if a[16] == '!':
+                        if a[0] in dict:
+                            if float(a[15]) < dict[a[0]][1]:
+                                dict[a[0]] = (a[7]+'-'+a[8],float(a[15]))
+                        else:
+                            dict[a[0]] = (a[7]+'-'+a[8],float(a[15]))
+    elif package == 'HMMER':
+        with open(files_dir + '/' + hit_file, 'r') as f:
+            for l in f:
+                if not(l[0] == '#'): 
+                    a = l.split()
+                    if float(a[12]) < evalue:
+                        if a[0] in dict:
+                            if float(a[12]) < dict[a[0]][1]:
+                                dict[a[0]] = (a[6]+'-'+a[7],float(a[12]))
+                        else:
+                            dict[a[0]] = (a[6]+'-'+a[7],float(a[12]))
+    else:
+        pass
+    with open(files_dir + '/keep_list.txt', 'w') as f:
+        lines = []
+        for k, v in dict.items():
+            lines.append(k + '/' + v[0] + "\n")
+        f.write(''.join(lines))
+    subprocess.run('wsl cd ' + wsl_files_loc + ' ; esl-alimanip -o '+output_alignment_file + ' --seq-k keep_list.txt '+ alignment_file, shell=True)
+    
+    
+def nhmmer_search_align(query_dir, query_file, target_dir, target_file, align_name, output_name, summary_name, e_value):
+    wsl_query_dir = util.wslname(query_dir)
+    wsl_target_dir = util.wslname(target_dir)
+    subprocess.run('wsl cd ' + wsl_query_dir + ' ; nhmmer -A ' + align_name + ' -o ' + output_name + ' --tblout ' + summary_name + ' --notextw --cpu 16 --incE ' + str(e_value) +' '+ query_file + ' ' + wsl_target_dir+'/' + target_file, shell=True)
+ 
+def hmmer_build(alignment_dir, alignment_file, model_name):
+    wsl_alignment_dir = util.wslname(alignment_dir)
+    subprocess.run('wsl cd ' + wsl_alignment_dir + ' ; hmmbuild --cpu 16 '+model_name+' '+alignment_file, shell=True)
