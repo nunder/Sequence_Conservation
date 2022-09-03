@@ -110,7 +110,7 @@ def nhmmer_search_sequence(query_dir, query_file, target_dir, target_file, align
     wsl_query_dir = util.wslname(query_dir)
     wsl_target_dir = util.wslname(target_dir)
     subprocess.run('wsl cd ' + wsl_query_dir + ' ; nhmmer -A ' + align_name + ' -o ' + output_name + ' --tblout ' + summary_name + ' --notextw --cpu 16 --incE ' + str(e_value) +' '+ query_file + ' ' + wsl_target_dir+'/' + target_file, shell=True)
- 
+   
 def hmmer_build(alignment_dir, alignment_file, model_name):
     wsl_alignment_dir = util.wslname(alignment_dir)
     subprocess.run('wsl cd ' + wsl_alignment_dir + ' ; hmmbuild --cpu 16 '+model_name+' '+alignment_file, shell=True)
@@ -124,3 +124,15 @@ def run_rscape(alignment_dir, alignment_file, cacofold_suffix):
     wsl_alignment_dir = util.wslname(alignment_dir)
     subprocess.run('wsl cd ' + wsl_alignment_dir + ' ; ~/rscape_v2.0.0.g/bin/R-scape  --cacofold --outname ' + cacofold_suffix +' '+ alignment_file, shell=True)
     
+def infernal_build_and_calib(alignment_dir, alignment_file, model_name, sec_structure = True):
+    wsl_alignment_dir = util.wslname(alignment_dir)
+    if sec_structure == True:
+        subprocess.run('wsl cd ' + wsl_alignment_dir + ' ; ~/infernal-1.1.4/src/cmbuild -F '+ model_name + ' ' + alignment_file+' ; ~/infernal-1.1.4/src/cmcalibrate ' + model_name , shell=True)
+    else:
+        subprocess.run('wsl cd ' + wsl_alignment_dir + ' ; ~/infernal-1.1.4/src/cmbuild --noss -F '+model_name+' '+alignment_file, shell=True)      # Models build using noss do not require calibration
+        
+def infernal_search(model_dir, model_file, target_dir, target_file, align_name, output_name, summary_name, e_value):
+    wsl_model_dir = util.wslname(model_dir)
+    wsl_target_dir = util.wslname(target_dir)
+    subprocess.run('wsl cd ' + wsl_model_dir + ' ; ~/infernal-1.1.4/src/cmsearch -A ' + align_name + ' -o ' + output_name + ' --tblout ' + summary_name + ' --notextw --cpu 16 --incE ' + str(e_value) +' '+ model_file + ' ' + wsl_target_dir+'/' + target_file, shell=True)
+ 
