@@ -37,6 +37,19 @@ def run_blastp(blast_dir, query_file, blast_db_name, e_value = 1e-10):
     os.chdir("D:/")
     subprocess.run('cd '+blast_dir+' & blastp -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -seg no -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
     os.chdir(w_d)
+    
+def run_blastn(blast_dir, query_file, blast_db_name, e_value = 1e-10): 
+    w_d = os.getcwd()
+    os.chdir("D:/")
+    subprocess.run('cd '+blast_dir+' & blastn -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
+    os.chdir(w_d)
+
+def run_tblastx(blast_dir, query_file, blast_db_name, e_value = 1e-10): 
+    w_d = os.getcwd()
+    os.chdir("D:/")
+    subprocess.run('cd '+blast_dir+' & tblastx -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
+    os.chdir(w_d)
+
 
 def process_blast_output(infile_loc, outfile_loc, names_dict, top_hit_only = False):
     blast_results = pd.read_csv(infile_loc, header = None)
