@@ -17,6 +17,8 @@ import math
 from scipy import linalg
 import scipy.stats as ss
 import copy
+import sys
+
 
 ###    File routines ###
 
@@ -100,6 +102,20 @@ def parallelize(func, group_ids, other_args, num_cores):
     parallel_output = Parallel(n_jobs=-1)(delayed(g)(group_ids, num_cores, core_number) for core_number in core_numbers)
     return [item for sublist in parallel_output for item in sublist]
 
+def produce_fasta_file(record_list, output_filename):
+    with open(output_filename, 'w',  newline='') as outfile:
+        line_length = 60
+        for record in tqdm(record_list):
+            sequence = record[1]
+            lines = []
+            sequence_length = len(sequence)
+            number_of_lines = math.ceil(sequence_length / line_length)
+            lines.append(">" +record[0]+ "\n")
+            for i in range(number_of_lines):
+                subsequence = sequence[i*line_length:(i+1)*line_length]
+                lines.append(subsequence + "\n")
+            outfile.write(''.join(lines))
+            
 def concatenate_fasta(directory, file_list, output_file):
     sequence_dict = {}
     for filename in file_list:
@@ -163,21 +179,34 @@ def read_fasta_to_array(filename, species_order = []):
     else:
         return [ordered_sequence_names, ordered_sequence_list]
   
- 
+def reverse_complement(seq_string):
+    complement_dict = {'A':'T','C':'G','G':'C','T':'A','N':'N'}
+    temp = []
+    for char in reversed(seq_string):
+        temp.append(complement_dict[char])
+    return ''.join(temp)
+
 class Translator:
     def __init__(self):
         self.codon_dict = {}
-    with open('D:/Project_Data/Project_3/Datasets/Reference_Tables/Standard_Code.txt') as f:
-        for l in f:
-            pass
-            #self.codon_dict[str(l[1:4])] = l[5]
-        
+        with open(os.path.join(sys.path[0], 'Standard_Code.txt'), 'r') as f:
+        #with open('D:/Project_Data/Project_3/Datasets/Reference_Tables/Standard_Code.txt') as f:
+            for l in f:
+                self.codon_dict[str(l[1:4])] = l[5]
+    
+    def reverse_complement(self, seq_string):
+        complement_dict = {'A':'T','C':'G','G':'C','T':'A','N':'N'}
+        temp = []
+        for char in reversed(seq_string):
+            temp.append(complement_dict[char])
+        return ''.join(temp)
+    
     def translate_sequence(self, input_seq, strand, rf, separate_start_symbol = False, separate_stop_symbol = False):
         output_seq = ''
         if strand == 1:
             seq = input_seq[rf:]
         else:
-            seq = align.reverse_complement(input_seq)[rf:]
+            seq = self.reverse_complement(input_seq)[rf:]
         for i in range(0,len(seq)-2,3):
             if separate_start_symbol == True and seq[i:(i+3)] in ['ATG','GTG','TTG']:
                 output_seq += 'Z'
@@ -189,3 +218,7 @@ class Translator:
                 else:
                     output_seq += 'X'
         return output_seq
+
+def convert_sequence_file_format(input_file_path, output_file_path, input_file_format = "fasta", output_file_format = "stockholm"):
+    alignments = AlignIO.parse(input_file_path, input_file_format)
+    AlignIO.write(alignments, output_file_path, output_file_format)

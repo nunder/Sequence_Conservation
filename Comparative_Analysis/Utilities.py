@@ -218,3 +218,7 @@ class Translator:
                 else:
                     output_seq += 'X'
         return output_seq
+
+def convert_sequence_file_format(input_file_path, output_file_path, input_file_format = "fasta", output_file_format = "stockholm"):
+    alignments = AlignIO.parse(input_file_path, input_file_format)
+    AlignIO.write(alignments, output_file_path, output_file_format)
