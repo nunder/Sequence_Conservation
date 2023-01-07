@@ -14,49 +14,41 @@ from pathlib import Path
 from joblib import Parallel, delayed
 import random
 from statistics import mean, stdev
+from scipy.stats import binom
 import math
 from scipy import linalg
 import scipy.stats as ss
 from . import Utilities as util
 import copy
+import pickle
 
-cryptic_output_path = "D:/Project_Data/CRYPTIC_DATA/Cryptic_Data_Analysis"
-genome_datasets_dir = 'D:/Project_Data/Project_6/Datasets/NCBI_Datasets'
+genome_datasets_file = 'D:/Project_Data/Project_8/Datasets/Actinobacteria_Ref_Rep_Lev_Complete/GCF_000195955.2_ASM19595v2_genomic.gbff'
+mutation_counts_file = 'D:/Project_Data/Project_9/mutation_counts.pkl'
 
 class ORF_Finder:
     def __init__(self):
-        genome_record = next(SeqIO.parse(genome_datasets_dir + '/GCF_000195955.2/genomic.gbff', "genbank"))
+        genome_record = next(SeqIO.parse(genome_datasets_file, "genbank"))
         self.full_sequence = genome_record.seq
-        variant_count_df = pd.read_csv(cryptic_output_path + '/filtered_variant_summary_df.csv')
-        variant_count_df = variant_count_df[variant_count_df['MUTATION_PCT'] < 0.1]
-        temp = variant_count_df.groupby(['GENOME_INDEX'])[['MYKROBE_LINEAGE_NAME_2']].count().reset_index()
-        temp_dict = dict(zip(temp.GENOME_INDEX, temp.MYKROBE_LINEAGE_NAME_2))
-        self.mutation_counts_dict = {}
-        for i in range(len(full_sequence)):
-            if (i+1) in temp_dict:
-                self.mutation_counts_dict[i] = temp_dict[(i+1)]
-            else:
-                self.mutation_counts_dict[i] = 0
+        with open(mutation_counts_file, 'rb') as f:
+            mutation_counts = pickle.load(f)  
+            mutation_counts.sort(key = lambda x: int(x[0]))
+            self.mutation_count_list = []
+            for (start, stop, counts) in mutation_counts:
+                for count in counts:
+                    self.mutation_count_list.append(count)
         
         
-    def bin_formula(self, max_bin_counts, tot_bin_counts, in_frame = False):
+    def bin_formula(self, max_bin_counts, tot_bin_counts):
         return 1- binom.cdf(max_bin_counts-1, tot_bin_counts,1/3)
 
-    def mutation_bin_probability(self, start, end, strand):
-        mutations = []
-        for i in range(start,end):
-            for j in range(self.mutation_counts_dict[i]):
-                mutations.append(i)
+    def mutation_bin_probability(self, mutation_counts):
         bin_counts = [0,0,0]
-        for m in mutations:
-            if strand == 1:
-                bin_counts[(m-(start))%3] +=1
-            else:
-                bin_counts[((end-1)-m)%3] +=1
+        for i, c in enumerate(mutation_counts):
+            bin_counts[i % 3] += c
         if sum(bin_counts) == 0:
-            return (2)
+            return 2
         else:
-            return (self.bin_formula(bin_counts[2], sum(bin_counts)))  
+            return self.bin_formula(bin_counts[2], sum(bin_counts))  
     
     def max_orf(self, seq_start, seq_stop, p_value, output_all_orfs = False, min_orf_length = 0):
         max_len = 0
@@ -87,7 +79,10 @@ class ORF_Finder:
                             orf_start =  seq_start + seq_len-(j+3)
                             orf_end = seq_start + seq_len-i
                             orf_strand = -1
-                        prob = self.mutation_bin_probability(orf_start, orf_end, orf_strand)
+                        if orf_strand == 1:
+                            prob = self.mutation_bin_probability(self.mutation_count_list[orf_start:orf_end])
+                        else:
+                            prob = self.mutation_bin_probability(reversed(self.mutation_count_list[orf_end:orf_start]))
                         if prob < p_value and orf_length >= min_orf_length:
                             orfs_found.append((orf_start, orf_end, orf_strand, orf_length, prob))
 
@@ -103,4 +98,8 @@ class ORF_Finder:
         elif start_pos == -999:
             return(0,0,0)
         else:
-            return(start_pos, end_pos, strand, max_len, self.mutation_bin_probability(start_pos, end_pos, strand))   
+             if strand == 1:
+                prob = self.mutation_bin_probability(self.mutation_count_list[start_pos:end_pos])
+            else:
+                prob = self.mutation_bin_probability(reversed(self.mutation_count_list[end_pos:start_pos]))
+            return(start_pos, end_pos, strand, max_len, prob)   
