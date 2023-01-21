@@ -23,7 +23,7 @@ from . import Utilities as util
 
 def build_blast_db(seq_dir, seq_filename, blast_db_name, blast_dir, db_type = 'prot'):
     w_d = os.getcwd()
-    os.chdir("D:/")
+    os.chdir("F:/")
     subprocess.run('cd '+ seq_dir + ' &  makeblastdb -in ' + seq_filename + ' -dbtype '+ db_type + ' -out ' + blast_db_name, shell=True, capture_output = True)
     os.chdir(w_d)
     files_to_move = [x for x in util.list_files(seq_dir) if x[:-4] == blast_db_name]
@@ -34,20 +34,26 @@ def build_blast_db(seq_dir, seq_filename, blast_db_name, blast_dir, db_type = 'p
         
 def run_blastp(blast_dir, query_file, blast_db_name, e_value = 1e-10): 
     w_d = os.getcwd()
-    os.chdir("D:/")
+    os.chdir("F:/")
     subprocess.run('cd '+blast_dir+' & blastp -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -seg no -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
     os.chdir(w_d)
     
 def run_blastn(blast_dir, query_file, blast_db_name, e_value = 1e-10): 
     w_d = os.getcwd()
-    os.chdir("D:/")
+    os.chdir("F:/")
     subprocess.run('cd '+blast_dir+' & blastn -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
     os.chdir(w_d)
 
 def run_tblastx(blast_dir, query_file, blast_db_name, e_value = 1e-10): 
     w_d = os.getcwd()
-    os.chdir("D:/")
+    os.chdir("F:/")
     subprocess.run('cd '+blast_dir+' & tblastx -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
+    os.chdir(w_d)
+    
+def run_tblastn(blast_dir, query_file, blast_db_name, e_value = 1e-10): 
+    w_d = os.getcwd()
+    os.chdir("F:/")
+    subprocess.run('cd '+blast_dir+' & tblastn -query '+blast_dir+'/'+query_file+' -db '+blast_db_name +' -out hits.csv -evalue '+str(e_value) +' -outfmt  "10 qaccver saccver qlen slen pident length mismatch gapopen qstart qend sstart send evalue bitscore" -num_threads 16', shell=True, capture_output = True)
     os.chdir(w_d)
 
 
