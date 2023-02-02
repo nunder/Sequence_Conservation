@@ -125,7 +125,10 @@ def align_keep_top_hit_per_species(files_dir, hit_file, alignment_file, output_a
             lines.append(k + '/' + v[0] + "\n")
         f.write(''.join(lines))
     subprocess.run('wsl cd ' + wsl_files_loc + ' ; esl-alimanip -o '+output_alignment_file + ' --seq-k keep_list.txt '+ alignment_file, shell=True)
-    
+        
+def convert_fasta_to_stockholm(files_dir, input_alignment_file, output_alignment_file):
+    wsl_files_loc = util.wslname(files_dir)
+    subprocess.run('wsl cd ' + wsl_files_loc + ' ; esl-reformat -d -o '+ output_alignment_file + ' stockholm ' + input_alignment_file, shell=True)
     
 def nhmmer_search_sequence(query_dir, query_file, target_dir, target_file, align_name, output_name, summary_name, e_value):
     wsl_query_dir = util.wslname(query_dir)
