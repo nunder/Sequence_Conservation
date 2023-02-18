@@ -78,11 +78,11 @@ def keep_reciprocal_best_hits(query_df, reverse_query_df, outfile_loc ='None'):
     temp_1_dict = {}
     temp_2_dict = {}
     for i, r in query_df.iterrows():
-        temp_1_dict[r['query_ref']] = r['target_ref']
+        temp_1_dict[(r['query_ref'], r['target_species_name'])] = r['target_ref']
     for i, r in reverse_query_df.iterrows():
-        temp_2_dict[r['query_ref']] = r['target_ref']
+        temp_2_dict[(r['query_ref'], r['target_species_name'])] = r['target_ref']
     for i, r in query_df.iterrows():
-        if temp_1_dict[r['query_ref']] in temp_2_dict and temp_2_dict[temp_1_dict[r['query_ref']]] == r['query_ref']:
+        if (temp_1_dict[(r['query_ref'], r['target_species_name'])], r['query_species_name']) in temp_2_dict and temp_2_dict[(temp_1_dict[(r['query_ref'], r['target_species_name'])], r['query_species_name'])] == r['query_ref']:
             query_df.at[i, 'reciprocal_best_hit'] = 'Y'
         else:
             query_df.at[i, 'reciprocal_best_hit'] = 'N'
