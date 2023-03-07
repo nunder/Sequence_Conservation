@@ -23,7 +23,7 @@ import copy
 import pickle
 
 genome_datasets_file = 'D:/Project_Data/Project_8/Datasets/Actinobacteria_Ref_Rep_Lev_Complete/GCF_000195955.2_ASM19595v2_genomic.gbff'
-mutation_counts_file = 'D:/Project_Data/Project_9/mutation_counts.pkl'
+mutation_counts_file = 'F:/Project_Data/Project_9/alt_mutation_counts.pkl'
 
 class ORF_Finder:
     def __init__(self, sequence):
