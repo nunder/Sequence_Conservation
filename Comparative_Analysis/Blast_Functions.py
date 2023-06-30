@@ -160,3 +160,10 @@ def infernal_search(model_dir, model_file, target_dir, target_file, align_name, 
     wsl_target_dir = util.wslname(target_dir)
     subprocess.run('wsl cd ' + wsl_model_dir + ' ; ~/infernal-1.1.4/src/cmsearch -A ' + align_name + ' -o ' + output_name + ' --tblout ' + summary_name + ' --notextw --cpu 16 --incE ' + str(e_value) +' '+ model_file + ' ' + wsl_target_dir+'/' + target_file, shell=True)
  
+def run_meme(search_regions_loc, output_dir, min_width, min_sites):
+    subprocess.run('wsl export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.4.1:usr/bin:$PATH ; meme '+ util.wslname(search_regions_loc) + ' -oc '+ util.wslname(output_dir) +' -dna -evt 0.001 -p 8 -revcomp -mod anr -brief 4000 -minw ' + str(min_width) +' -maxw 200 -minsites ' + str(min_sites)
+               , shell=True)
+    
+def run_fimo(motif_file, sequence_to_search_file, output_dir):
+    subprocess.run('wsl export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.4.1:usr/bin:$PATH ; fimo -oc ' + util.wslname(output_dir) + ' ' + util.wslname(motif_file) + ' ' + util.wslname(sequence_to_search_file)
+               , shell=True)
