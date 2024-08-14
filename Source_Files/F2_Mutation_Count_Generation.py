@@ -97,9 +97,7 @@ def generate_mutation_counts(filename, core_number):
         else:
             children = node.children
             node.add_features(seq = fitch_1(children[0].seq, children[1].seq))
-    #for k, v in sequence_to_score_dict.items():              
-        #seq_length = len(v)
-        #break
+
     
     mutation_counts = [0 for i in range(seq_length)]
     for node in master_tree2.traverse("preorder"):
@@ -136,10 +134,9 @@ for record in SeqIO.parse(datasets_dir + '/' + tb_genome_filename, "genbank"):
     full_sequence = str(record.seq)
 tb_length = len(full_sequence)
 
-#  LOAD VARIANT DICTIONARY AND IDS IN TREE
+#  LOAD VARIANT DICTIONARY AND IDS IN TREE (FILES PRODUCED IN TREE CREATION STEP - SEE F1_TREE_CREATION_SCRIPT)
 
-#if full_run == True:
-if 1==1:
+if full_run == True:
     with open(project_dir + '/variant_dict.pkl', 'rb') as f:
         variant_dict = pickle.load(f) 
     with open(project_dir + '/ids.pkl', 'rb') as f:
@@ -159,7 +156,6 @@ if 1==1:
     chunk_size = math.ceil(tb_variants_sequence_length/num_chunks)
       
 if full_run == True:
-#if 1==1:
     chunk_variant_dict = defaultdict(lambda: defaultdict(list))
     for k, v in variant_dict.items():
         if k in distinct_sequence_names:
@@ -174,12 +170,10 @@ if full_run == True:
     print("Built dictionaries")
 
 if full_run == True:
-#if 1==1:
     for core_1 in tqdm(range(num_iterations)):
         parallel_output = Parallel(n_jobs=-1, timeout = timeout)(delayed(generate_variant_sequence_dict)(core_1 * num_cores + core_2) for (core_2) in core_numbers)
         
-#if full_run==True:  
-if 1==1:
+if full_run==True:  
     res = []
     filename_list = list_files(dictionary_dir)
     for filename in tqdm(filename_list):
@@ -197,8 +191,7 @@ if 1==1:
     with open(mutation_count_dir + '/all_mutation_counts.pkl', 'wb') as f:
         pickle.dump(res, f) 
 
-#if full_run==True:  
-if 1==1:
+if full_run==True:  
     with open(mutation_count_dir + '/all_mutation_counts.pkl', 'rb') as f:
         res = pickle.load(f) 
     non_zero_mutation_counts = []

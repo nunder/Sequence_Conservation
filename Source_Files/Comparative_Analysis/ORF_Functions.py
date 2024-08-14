@@ -133,7 +133,7 @@ class H37Rv_ORF_Finder:
             for i in range(seq_len - 2):
                 orf_length = 0
                 test_codon = temp[i: i+3] 
-                if test_codon in ['ATG','GTG','TTG']:  #Missed out CTG as doesn't seem to be used very much at all
+                if test_codon in ['ATG','GTG','TTG']:  #Missed out CTG but can be included if required as potential start codon
                     for j in range(i + 3, seq_len - 2, 3):
                         test_codon_2 = temp[j: j+3] 
                         if test_codon_2 in ['TAG','TGA','TAA']:

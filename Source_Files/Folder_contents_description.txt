@@ -1,0 +1,21 @@
+F1_TREE_CREATION_SCRIPT
+
+Creates pairwise distance matrix from CRyPTIC variant data downloaded from CRyPTIC FTP site.  The resulting file can then be read into QuickTree to produce Phylip formatted tree.
+
+F2_MUTATION_COUNT_GENERATION
+
+Applies Fitch algorithm to tree to count ancestral mutations for each position in H37Rv reference sequence and output to list (zero_and_non_zero_mutation_counts).
+
+F3_CONSERVATION_PATTERNS_BY_RELATIVE_POSITION
+
+Based on Mycobrowser annotation, for each upstream/downstream region of annotated CDS where minimum intergenic distance is 100nt
+
+F4_ANALYSIS
+
+Calculation of p-values for annotated CDS and related plots.  
+Calculation of p-values for maximal ORFs classified by overlap/reading frame relative to annotated ORFs.
+Calculation of potential start codons upstream of annotated start codons and compare with those in DeJesus where suggestions are made for a particular ORF.
+
+F5_NOVEL_ORFs
+
+Identify potential mORFs based on orthology (greater than 5 mg with substitution bias

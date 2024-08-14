@@ -11,7 +11,7 @@ from joblib import Parallel, delayed
 project_dir = '/d/projects/u/un001/Cryptic_Tree_GPI'
 datasets_dir = project_dir + '/Datasets'
 tb_genome_filename = 'GCF_000195955.2_ASM19595v2_genomic.gbff'
-full_run = True
+full_run = False
 
 num_cores = 32
 core_numbers = list(range(1, num_cores+1))
@@ -25,14 +25,12 @@ tb_length = len(full_sequence)
 
 #  CREATE VARIANT DATASETS FROM CRYPTIC RAW DATA
 
-#if full_run == True:
-if 1==0:
+if full_run == True:
     variant_df = pd.read_csv(datasets_dir + "/VARIANTS.csv") 
     with open(project_dir + '/variant_df.pkl', 'wb') as f:
         pickle.dump(variant_df[['UNIQUEID', 'VARIANT', 'MUTATION_TYPE', 'IS_NULL', 'IS_HET', 'IS_FILTER_PASS', 'IS_SNP', 'REF', 'ALT', 'GENOME_INDEX']], f)    
 
-#if full_run == True:
-if 1==0:
+if full_run == True:
     with open(project_dir + '/variant_df.pkl', 'rb') as f:
         full_variant_df = pickle.load(f) 
     print(len(full_variant_df))
@@ -44,8 +42,7 @@ if 1==0:
     with open(project_dir + '/gpi_variant_df.pkl', 'wb') as f:
         pickle.dump(gpi_variant_df, f)    
 
-#if full_run == True:
-if 1==0:
+if full_run == True:
     position_dict = {}
     variant_dict = {}
     id_dict = {}
@@ -78,7 +75,6 @@ if 1==0:
 #  ALTERNATIVE VERSION - CORRECTING ASSUMING COMPLEMENTS WHEN REF IS COMPLEMENT OF ACTUAL REFERENCE SEQUENCE ENTRY
 
 if full_run == True:
-#if 1==1:
     complement_dict = {'a':'t', 'c':'g', 'g':'c', 't':'a'}
     position_dict = {}
     variant_dict = {}
@@ -138,6 +134,7 @@ def generate_distances(ind_1, ind_2):
                 continue
             sd = v1.symmetric_difference(v2)
             temp = {x[:-1] for x in sd}   # Only count variants with different nt in SNP as one mutation
+            # Apply Jukes Cantor transformation if required  #
             #f = len(temp)/tb_length
             #d = -3/4 * math.log(1 - 4*f /3)
             #distance_dict[(k1, k2)] = d
@@ -145,7 +142,6 @@ def generate_distances(ind_1, ind_2):
     return(distance_dict)
 
 if full_run == True:
-#if 1==1:
     with open(project_dir + '/variant_dict.pkl', 'rb') as f:
         temp_variant_dict = pickle.load(f) 
     print(len(temp_variant_dict))
@@ -170,7 +166,6 @@ if full_run == True:
 
 
 if full_run == True:
-#if 1==1:
     for core_1 in tqdm(core_numbers):
         master_dict = {}
         parallel_output = Parallel(n_jobs=-1, timeout = timeout)(delayed(generate_distances)(core_1, core_2) for (core_2) in core_numbers)
@@ -214,7 +209,7 @@ if full_run == True:
     ids.sort()
 
 
-    #FINAL OUTPUT
+    #FINAL OUTPUT FOR INPUT TO QUICKTREE
     print("Writing data")
     #with open(project_dir + '/master_distance_dict.pkl', 'wb') as f:
     #    pickle.dump(master_dict, f) 
